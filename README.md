@@ -1,4 +1,4 @@
-# Mini Project - Fog Computing and YAFS integration
+# Mini Project - SUMO and YAFS integration
 
 This mini project aims to explore the integration of Fog Computing concepts with the YAFS (Yet Another Fog Simulator) framework. The goal is to simulate and analyze the performance of applications deployed in a fog computing environment using YAFS.
 
