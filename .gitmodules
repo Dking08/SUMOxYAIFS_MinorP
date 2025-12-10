@@ -1,0 +1,6 @@
+[submodule "SUMO"]
+	path = SUMO
+	url = https://github.com/Dking08/sumo-y-connect.git
+[submodule "YAFS"]
+	path = YAFS
+	url = https://github.com/Dking08/YAFS-s-connect.git
