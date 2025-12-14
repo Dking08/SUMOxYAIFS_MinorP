@@ -3,6 +3,7 @@
 This mini project aims to explore the integration of Fog Computing concepts with the YAFS (Yet Another Fog Simulator) framework. The goal is to simulate and analyze the performance of applications deployed in a fog computing environment using YAFS.
 
 [YAFS GitHub Repository](https://github.com/acsicuib/YAFS)
+
 [SUMO (Simulation of Urban MObility)](https://github.com/eclipse-sumo/sumo)
 
 ## **1. Repository Structure**
@@ -24,14 +25,21 @@ Each submodule is connected to **our private forks**, not the public upstream re
 
 Because this repo uses submodules, **you must clone with submodules included**.
 
-### **Option A — Recommended (one-shot clone with submodules)**
+### **Option A — Recommended (just the code)**
+
+```bash
+git clone https://github.com/Dking08/sumo_YAFS_mProject
+cd sumo_YAFS_mProject
+```
+
+### **Option B — Not-Recommended (one-shot clone with submodules)**
 
 ```bash
 git clone --recurse-submodules https://github.com/Dking08/sumo_YAFS_mProject
 cd sumo_YAFS_mProject
 ```
 
-### **Option B — If you already cloned normally**
+### **Option C — If you already cloned normally**
 
 ```bash
 git submodule update --init --recursive
@@ -62,6 +70,11 @@ This allows us to:
 * Pull updates from upstream when needed
 * Push our modifications to the private fork
 * Keep our changes private and secure
+
+---
+
+## 4. Download
+- SUMO - [Download](https://sumo.dlr.de/docs/Downloads.php)
 
 ---
 
