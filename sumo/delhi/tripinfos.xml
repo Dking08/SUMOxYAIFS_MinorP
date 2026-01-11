@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2026-01-11T18:23:40.351390+05:30 by Eclipse SUMO sumo v1_25_0+0442-c83876658c9
+<sumoConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
+
+    <input>
+        <net-file value="sumo/delhi/osm.net.xml.gz"/>
+        <route-files value="sumo/delhi/osm.passenger.trips.xml"/>
+        <additional-files value="sumo/delhi/osm.poly.xml.gz,sumo/delhi/output.add.xml"/>
+    </input>
+
+    <output>
+        <fcd-output value="sumo/delhi/fcd.xml"/>
+        <tripinfo-output value="sumo/delhi/tripinfos.xml"/>
+        <statistic-output value="sumo/delhi/stats.xml"/>
+    </output>
+
+    <time>
+        <step-length value="1"/>
+    </time>
+
+    <processing>
+        <ignore-route-errors value="true"/>
+        <max-num-vehicles value="20"/>
+        <tls.actuated.jam-threshold value="30"/>
+    </processing>
+
+    <routing>
+        <device.rerouting.adaptation-steps value="18"/>
+        <device.rerouting.adaptation-interval value="10"/>
+    </routing>
+
+    <report>
+        <verbose value="true"/>
+        <duration-log.statistics value="true"/>
+        <no-step-log value="true"/>
+    </report>
+
+    <traci_server>
+        <remote-port value="8873"/>
+    </traci_server>
+
+    <gui_only>
+        <gui-settings-file value="sumo/delhi/osm.view.xml"/>
+    </gui_only>
+
+</sumoConfiguration>
+-->
+
+<tripinfos xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/tripinfo_file.xsd">
+    <tripinfo id="veh2" depart="5.00" departLane="758753893#0_0" departPos="5.10" departSpeed="28.07" departDelay="0.20" arrival="119.00" arrivalLane="-24577106#1_0" arrivalPos="5.62" arrivalSpeed="27.61" duration="114.00" routeLength="2148.54" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="30.21" rerouteNo="1" devices="tripinfo_veh2 routing_veh2 fcd_veh2" vType="veh_passenger" speedFactor="1.01" vaporized=""/>
+    <tripinfo id="veh4" depart="10.00" departLane="-998790356#2_0" departPos="3.09" departSpeed="0.00" departDelay="0.40" arrival="127.00" arrivalLane="24577383#0_0" arrivalPos="25.85" arrivalSpeed="14.49" duration="117.00" routeLength="2060.98" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="38.13" rerouteNo="1" devices="tripinfo_veh4 routing_veh4 fcd_veh4" vType="veh_passenger" speedFactor="1.03" vaporized=""/>
+    <tripinfo id="veh0" depart="0.00" departLane="370672197#2_0" departPos="5.10" departSpeed="0.00" departDelay="0.00" arrival="133.00" arrivalLane="-1074715753#1_0" arrivalPos="14.80" arrivalSpeed="12.25" duration="133.00" routeLength="2368.04" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="26.51" rerouteNo="1" devices="tripinfo_veh0 routing_veh0 fcd_veh0" vType="veh_passenger" speedFactor="1.06" vaporized=""/>
+    <tripinfo id="veh1" depart="3.00" departLane="585446277#0_0" departPos="5.10" departSpeed="0.00" departDelay="0.60" arrival="149.00" arrivalLane="446922582#7_0" arrivalPos="84.70" arrivalSpeed="25.99" duration="146.00" routeLength="2382.84" waitingTime="16.00" waitingCount="1" stopTime="0.00" timeLoss="52.92" rerouteNo="1" devices="tripinfo_veh1 routing_veh1 fcd_veh1" vType="veh_passenger" speedFactor="0.94" vaporized=""/>
+    <tripinfo id="veh3" depart="8.00" departLane="24577106#0_0" departPos="5.10" departSpeed="30.08" departDelay="0.80" arrival="197.00" arrivalLane="-1074715757_0" arrivalPos="42.13" arrivalSpeed="14.60" duration="189.00" routeLength="4058.49" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="38.54" rerouteNo="1" devices="tripinfo_veh3 routing_veh3 fcd_veh3" vType="veh_passenger" speedFactor="1.08" vaporized=""/>
+    <tripinfo id="veh5" depart="12.00" departLane="-1074715752#0_0" departPos="5.10" departSpeed="0.00" departDelay="0.00" arrival="226.00" arrivalLane="-717531843_0" arrivalPos="30.62" arrivalSpeed="11.06" duration="214.00" routeLength="3070.52" waitingTime="5.00" waitingCount="1" stopTime="0.00" timeLoss="46.02" rerouteNo="1" devices="tripinfo_veh5 routing_veh5 fcd_veh5" vType="veh_passenger" speedFactor="0.83" vaporized=""/>
+</tripinfos>
