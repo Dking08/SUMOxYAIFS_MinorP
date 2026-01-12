@@ -45,6 +45,25 @@ def run_sumo_with_fog(sumo_cfg: str, port: int = 8873, start_sumo: bool = False,
                 fog.send_to_fog(packet)
 
             fog.tick()
+            # Pull any feedback commands from fog and apply to SUMO via TraCI
+            try:
+                feedbacks = fog.drain_feedback()
+            except Exception:
+                feedbacks = []
+
+            for cmd in feedbacks:
+                vid = cmd.get("id")
+                speed = cmd.get("speed")
+                # Apply speed change if vehicle still exists
+                try:
+                    if vid in traci.vehicle.getIDList():
+                        # setSpeed sets the speed for the next simulation step
+                        traci.vehicle.setSpeed(vid, float(speed))
+                        # lightweight logging for verification
+                        print(f"[FOG->SUMO] Applied {cmd}", flush=True)
+                except Exception:
+                    # ignore any TraCI errors (vehicle may have left)
+                    pass
             step += 1
             # yield briefly
             time.sleep(0)

@@ -6,6 +6,7 @@ from yafs.placement import Placement
 from queue import Queue
 from population import SUMOPopulation
 import json
+from modules.fog_processor import FogProcessor
 
 class FogPlacement(Placement):
     def __init__(self, name, mapping, app=None):
@@ -64,6 +65,9 @@ class MinimalFogSim:
         # SUMO → Fog queue
         self.external_queue = Queue()
 
+        # Simple fog processor (single-node)
+        # Lower threshold for a more aggressive test (vehicles >5.0 m/s will be slowed)
+        self.processor = FogProcessor(speed_threshold=5.0)
         # Population consumer
         self.pop = SUMOPopulation(self.app, self.external_queue)
 
@@ -88,6 +92,18 @@ class MinimalFogSim:
 
     def send_to_fog(self, packet):
         self.external_queue.put(packet)
+        # Also process immediately in the local fog processor (synchronous)
+        try:
+            self.processor.process(packet)
+        except Exception:
+            pass
+
+    def drain_feedback(self):
+        """Return a list of feedback commands produced by the FogProcessor."""
+        try:
+            return self.processor.drain_feedback()
+        except Exception:
+            return []
 
     def tick(self):
         # Advance the DES by one time unit relative to current simulation time
