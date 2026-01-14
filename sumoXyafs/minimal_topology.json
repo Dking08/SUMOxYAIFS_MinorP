@@ -1,0 +1,15 @@
+{
+  "entity": [
+    {"id": 1, "type": "fog", "IPT": 2000},
+    {"id": 2, "type": "server", "IPT": 1000},
+    {"id": 3, "type": "cloud", "IPT": 100000}
+  ],
+  "link": [
+    {"s": 1, "d": 2, "BW": 10000, "PR": 10},
+    {"s": 2, "d": 3, "BW": 10000, "PR": 50},
+    {"s": 1, "d": 3, "BW": 5000, "PR": 70}
+  ],
+  "gateway": [],
+  "link_latency": [],
+  "bandwidth": []
+}
