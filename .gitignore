@@ -1,4 +1,6 @@
+venv/
 __pycache__/
 *.pyc
 result_link.csv
 result.csv
+results/
