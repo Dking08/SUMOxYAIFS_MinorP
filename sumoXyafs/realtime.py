@@ -7,7 +7,14 @@ import traci
 from yafs_core import MinimalFogSim
 
 
-def run_sumo_with_fog(sumo_cfg: str, port: int = 8873, start_sumo: bool = False, use_gui: bool = False, steps: int = 500) -> None:
+def run_sumo_with_fog(
+    sumo_cfg: str,
+    port: int = 8873,
+    start_sumo: bool = False,
+    use_gui: bool = False,
+    steps: int = 500,
+    step_delay: float = 0.0,
+) -> None:
     fog = MinimalFogSim()
 
     # Start SUMO process or connect to an existing one
@@ -17,19 +24,8 @@ def run_sumo_with_fog(sumo_cfg: str, port: int = 8873, start_sumo: bool = False,
         traci.start(cmd, port=port)
     else:
         # connect to already-running SUMO (must be started with --remote-port)
-        # Try a few times in case SUMO is still starting or port not yet accepting
-        connected = False
-        attempts = 0
-        max_attempts = 10
-        while not connected and attempts < max_attempts:
-            try:
-                traci.connect(host="127.0.0.1", port=port)
-                connected = True
-            except Exception:
-                attempts += 1
-                if attempts >= max_attempts:
-                    raise
-                time.sleep(0.5)
+        # traci.init handles retries internally (numRetries × 1 s backoff)
+        traci.init(port=port, numRetries=10, host="127.0.0.1")
 
     try:
         step = 0
@@ -65,8 +61,9 @@ def run_sumo_with_fog(sumo_cfg: str, port: int = 8873, start_sumo: bool = False,
                     # ignore any TraCI errors (vehicle may have left)
                     pass
             step += 1
-            # yield briefly
-            time.sleep(0)
+            # Optional delay to slow down visible simulation in SUMO GUI
+            if step_delay > 0:
+                time.sleep(step_delay)
     finally:
         try:
             traci.close()
@@ -81,9 +78,17 @@ def main() -> None:
     p.add_argument("--start-sumo", action="store_true", help="Start SUMO from this script")
     p.add_argument("--gui", action="store_true", help="Start SUMO GUI when --start-sumo is used")
     p.add_argument("--steps", type=int, default=500, help="Number of simulation steps to run")
+    p.add_argument("--step-delay", type=float, default=0.0, help="Delay in seconds after each simulation step (for visible GUI playback)")
     args = p.parse_args()
 
-    run_sumo_with_fog(args.sumo_cfg, port=args.port, start_sumo=args.start_sumo, use_gui=args.gui, steps=args.steps)
+    run_sumo_with_fog(
+        args.sumo_cfg,
+        port=args.port,
+        start_sumo=args.start_sumo,
+        use_gui=args.gui,
+        steps=args.steps,
+        step_delay=args.step_delay,
+    )
 
 
 if __name__ == "__main__":

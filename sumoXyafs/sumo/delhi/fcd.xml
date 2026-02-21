@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on 2026-01-11T21:06:53.746477+05:30 by Eclipse SUMO sumo v1_25_0+0442-c83876658c9
+<!-- generated on 2026-02-21T15:34:01.180105+05:30 by Eclipse SUMO GUI 1.25.0
 <sumoConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
 
     <input>
@@ -14,10 +14,6 @@
         <tripinfo-output value="sumo/delhi/tripinfos.xml"/>
         <statistic-output value="sumo/delhi/stats.xml"/>
     </output>
-
-    <time>
-        <step-length value="1"/>
-    </time>
 
     <processing>
         <ignore-route-errors value="true"/>
@@ -42,6 +38,7 @@
 
     <gui_only>
         <gui-settings-file value="sumo/delhi/osm.view.xml"/>
+        <start value="true"/>
     </gui_only>
 
 </sumoConfiguration>
@@ -287,46 +284,6 @@
         <vehicle id="veh1" x="2756.10" y="2687.35" angle="356.32" type="veh_passenger" speed="0.00" pos="5.10" lane="585446277#0_0" slope="0.00"/>
         <vehicle id="veh2" x="235.22" y="2863.29" angle="121.65" type="veh_passenger" speed="5.00" pos="208.99" lane="758753893#0_0" slope="0.00"/>
         <vehicle id="veh3" x="331.41" y="3879.01" angle="62.31" type="veh_passenger" speed="4.42" pos="193.53" lane="24577106#0_0" slope="0.00"/>
-        <vehicle id="veh4" x="822.28" y="4130.88" angle="247.44" type="veh_passenger" speed="0.00" pos="3.09" lane="-998790356#2_0" slope="0.00"/>
-        <vehicle id="veh5" x="2383.27" y="2591.15" angle="146.39" type="veh_passenger" speed="0.00" pos="5.10" lane="-1074715752#0_0" slope="0.00"/>
-    </timestep>
-    <timestep time="35.00">
-        <vehicle id="veh0" x="2089.09" y="4076.76" angle="181.24" type="veh_passenger" speed="0.00" pos="5.10" lane="370672197#2_0" slope="0.00"/>
-        <vehicle id="veh1" x="2756.10" y="2687.35" angle="356.32" type="veh_passenger" speed="0.00" pos="5.10" lane="585446277#0_0" slope="0.00"/>
-        <vehicle id="veh2" x="239.47" y="2860.67" angle="121.65" type="veh_passenger" speed="5.00" pos="213.99" lane="758753893#0_0" slope="0.00"/>
-        <vehicle id="veh3" x="335.32" y="3881.06" angle="62.31" type="veh_passenger" speed="4.42" pos="197.95" lane="24577106#0_0" slope="0.00"/>
-        <vehicle id="veh4" x="822.28" y="4130.88" angle="247.44" type="veh_passenger" speed="0.00" pos="3.09" lane="-998790356#2_0" slope="0.00"/>
-        <vehicle id="veh5" x="2383.27" y="2591.15" angle="146.39" type="veh_passenger" speed="0.00" pos="5.10" lane="-1074715752#0_0" slope="0.00"/>
-    </timestep>
-    <timestep time="36.00">
-        <vehicle id="veh0" x="2089.09" y="4076.76" angle="181.24" type="veh_passenger" speed="0.00" pos="5.10" lane="370672197#2_0" slope="0.00"/>
-        <vehicle id="veh1" x="2756.10" y="2687.35" angle="356.32" type="veh_passenger" speed="0.00" pos="5.10" lane="585446277#0_0" slope="0.00"/>
-        <vehicle id="veh2" x="243.76" y="2858.09" angle="121.04" type="veh_passenger" speed="5.00" pos="218.99" lane="758753893#0_0" slope="0.00"/>
-        <vehicle id="veh3" x="339.23" y="3883.12" angle="62.31" type="veh_passenger" speed="4.42" pos="202.37" lane="24577106#0_0" slope="0.00"/>
-        <vehicle id="veh4" x="822.28" y="4130.88" angle="247.44" type="veh_passenger" speed="0.00" pos="3.09" lane="-998790356#2_0" slope="0.00"/>
-        <vehicle id="veh5" x="2383.27" y="2591.15" angle="146.39" type="veh_passenger" speed="0.00" pos="5.10" lane="-1074715752#0_0" slope="0.00"/>
-    </timestep>
-    <timestep time="37.00">
-        <vehicle id="veh0" x="2089.09" y="4076.76" angle="181.24" type="veh_passenger" speed="0.00" pos="5.10" lane="370672197#2_0" slope="0.00"/>
-        <vehicle id="veh1" x="2756.10" y="2687.35" angle="356.32" type="veh_passenger" speed="0.00" pos="5.10" lane="585446277#0_0" slope="0.00"/>
-        <vehicle id="veh2" x="248.09" y="2855.60" angle="119.92" type="veh_passenger" speed="5.00" pos="223.99" lane="758753893#0_0" slope="0.00"/>
-        <vehicle id="veh3" x="343.14" y="3885.18" angle="62.15" type="veh_passenger" speed="4.42" pos="206.79" lane="24577106#0_0" slope="0.00"/>
-        <vehicle id="veh4" x="822.28" y="4130.88" angle="247.44" type="veh_passenger" speed="0.00" pos="3.09" lane="-998790356#2_0" slope="0.00"/>
-        <vehicle id="veh5" x="2383.27" y="2591.15" angle="146.39" type="veh_passenger" speed="0.00" pos="5.10" lane="-1074715752#0_0" slope="0.00"/>
-    </timestep>
-    <timestep time="38.00">
-        <vehicle id="veh0" x="2089.09" y="4076.76" angle="181.24" type="veh_passenger" speed="0.00" pos="5.10" lane="370672197#2_0" slope="0.00"/>
-        <vehicle id="veh1" x="2756.10" y="2687.35" angle="356.32" type="veh_passenger" speed="0.00" pos="5.10" lane="585446277#0_0" slope="0.00"/>
-        <vehicle id="veh2" x="252.42" y="2853.11" angle="119.92" type="veh_passenger" speed="5.00" pos="228.99" lane="758753893#0_0" slope="0.00"/>
-        <vehicle id="veh3" x="347.05" y="3887.25" angle="62.13" type="veh_passenger" speed="4.42" pos="211.21" lane="24577106#0_0" slope="0.00"/>
-        <vehicle id="veh4" x="822.28" y="4130.88" angle="247.44" type="veh_passenger" speed="0.00" pos="3.09" lane="-998790356#2_0" slope="0.00"/>
-        <vehicle id="veh5" x="2383.27" y="2591.15" angle="146.39" type="veh_passenger" speed="0.00" pos="5.10" lane="-1074715752#0_0" slope="0.00"/>
-    </timestep>
-    <timestep time="39.00">
-        <vehicle id="veh0" x="2089.09" y="4076.76" angle="181.24" type="veh_passenger" speed="0.00" pos="5.10" lane="370672197#2_0" slope="0.00"/>
-        <vehicle id="veh1" x="2756.10" y="2687.35" angle="356.32" type="veh_passenger" speed="0.00" pos="5.10" lane="585446277#0_0" slope="0.00"/>
-        <vehicle id="veh2" x="256.75" y="2850.62" angle="119.92" type="veh_passenger" speed="5.00" pos="233.99" lane="758753893#0_0" slope="0.00"/>
-        <vehicle id="veh3" x="350.96" y="3889.31" angle="62.13" type="veh_passenger" speed="4.42" pos="215.63" lane="24577106#0_0" slope="0.00"/>
         <vehicle id="veh4" x="822.28" y="4130.88" angle="247.44" type="veh_passenger" speed="0.00" pos="3.09" lane="-998790356#2_0" slope="0.00"/>
         <vehicle id="veh5" x="2383.27" y="2591.15" angle="146.39" type="veh_passenger" speed="0.00" pos="5.10" lane="-1074715752#0_0" slope="0.00"/>
     </timestep>

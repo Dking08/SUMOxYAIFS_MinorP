@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on 2026-01-11T21:06:53.745764+05:30 by Eclipse SUMO sumo v1_25_0+0442-c83876658c9
+<!-- generated on 2026-02-21T15:34:01.179177+05:30 by Eclipse SUMO GUI 1.25.0
 <sumoConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
 
     <input>
@@ -14,10 +14,6 @@
         <tripinfo-output value="sumo/delhi/tripinfos.xml"/>
         <statistic-output value="sumo/delhi/stats.xml"/>
     </output>
-
-    <time>
-        <step-length value="1"/>
-    </time>
 
     <processing>
         <ignore-route-errors value="true"/>
@@ -42,6 +38,7 @@
 
     <gui_only>
         <gui-settings-file value="sumo/delhi/osm.view.xml"/>
+        <start value="true"/>
     </gui_only>
 
 </sumoConfiguration>
