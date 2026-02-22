@@ -1,0 +1,79 @@
+{
+  "defaults": {
+    "capacity": 20
+  },
+  "rsus": [
+    {
+      "id": "rsu_1",
+      "node_id": 1,
+      "x": 450.0,
+      "y": 900.0,
+      "capacity": 20,
+      "neighbors": ["rsu_2", "rsu_4"]
+    },
+    {
+      "id": "rsu_2",
+      "node_id": 2,
+      "x": 1800.0,
+      "y": 1200.0,
+      "capacity": 20,
+      "neighbors": ["rsu_1", "rsu_3", "rsu_5"]
+    },
+    {
+      "id": "rsu_3",
+      "node_id": 3,
+      "x": 3300.0,
+      "y": 1500.0,
+      "capacity": 20,
+      "neighbors": ["rsu_2", "rsu_6"]
+    },
+    {
+      "id": "rsu_4",
+      "node_id": 1,
+      "x": 600.0,
+      "y": 3600.0,
+      "capacity": 18,
+      "neighbors": ["rsu_1", "rsu_5", "rsu_7"]
+    },
+    {
+      "id": "rsu_5",
+      "node_id": 2,
+      "x": 2050.0,
+      "y": 4300.0,
+      "capacity": 22,
+      "neighbors": ["rsu_2", "rsu_4", "rsu_6", "rsu_8"]
+    },
+    {
+      "id": "rsu_6",
+      "node_id": 3,
+      "x": 3420.0,
+      "y": 4700.0,
+      "capacity": 20,
+      "neighbors": ["rsu_3", "rsu_5", "rsu_9"]
+    },
+    {
+      "id": "rsu_7",
+      "node_id": 1,
+      "x": 700.0,
+      "y": 7000.0,
+      "capacity": 16,
+      "neighbors": ["rsu_4", "rsu_8"]
+    },
+    {
+      "id": "rsu_8",
+      "node_id": 2,
+      "x": 2150.0,
+      "y": 7600.0,
+      "capacity": 20,
+      "neighbors": ["rsu_5", "rsu_7", "rsu_9"]
+    },
+    {
+      "id": "rsu_9",
+      "node_id": 3,
+      "x": 3450.0,
+      "y": 8300.0,
+      "capacity": 20,
+      "neighbors": ["rsu_6", "rsu_8"]
+    }
+  ]
+}
