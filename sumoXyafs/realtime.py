@@ -1,10 +1,56 @@
-"""Run SUMO (start or connect) and forward vehicle telemetry to MinimalFogSim."""
+"""Run SUMO and orchestrate multi-RSU fog control via YAFS bridge."""
 from __future__ import annotations
 
 import argparse
 import time
-import traci
-from yafs_core import MinimalFogSim
+from pathlib import Path
+
+
+def _resolve_path(path_str: str) -> str:
+    path = Path(path_str)
+    if path.exists():
+        return str(path)
+
+    base = Path(__file__).resolve().parent
+    base_relative = base / path
+    if base_relative.exists():
+        return str(base_relative)
+
+    # Accept defaults prefixed with "sumoXyafs/" when running from repo root.
+    parts = list(path.parts)
+    if parts and parts[0].lower() == base.name.lower():
+        stripped = base / Path(*parts[1:])
+        if stripped.exists():
+            return str(stripped)
+
+    return str(path)
+
+
+def _load_traci():
+    try:
+        import traci  # type: ignore
+    except ModuleNotFoundError as exc:
+        raise ModuleNotFoundError("TraCI is not installed. Install SUMO Python tools and retry.") from exc
+    return traci
+
+
+def _apply_feedback(traci, feedbacks: list[dict], live_vehicle_ids: set[str], dashboard=None) -> None:
+    for cmd in feedbacks:
+        vid = cmd.get("id")
+        if not vid or vid not in live_vehicle_ids:
+            continue
+
+        # Apply speed first, then route update, while tolerating disappearing vehicles.
+        try:
+            if "speed" in cmd and cmd["speed"] is not None:
+                traci.vehicle.setSpeed(vid, float(cmd["speed"]))
+            if bool(cmd.get("reroute", False)):
+                traci.vehicle.rerouteTraveltime(vid)
+            print(f"[FOG->SUMO] Applied {cmd}", flush=True)
+            if dashboard is not None:
+                dashboard.record_command(cmd)
+        except Exception:
+            pass
 
 
 def run_sumo_with_fog(
@@ -14,57 +60,131 @@ def run_sumo_with_fog(
     use_gui: bool = False,
     steps: int = 500,
     step_delay: float = 0.0,
+    rsu_config: str = "sumoXyafs/rsu_config.json",
+    task_deadline: float = 2.0,
+    overload_queue_threshold: int = 20,
+    reroute_cooldown: float = 5.0,
+    rsu_capacity_default: int = 20,
+    dashboard: bool = False,
+    dashboard_rows: int = 20,
 ) -> None:
-    fog = MinimalFogSim()
+    from modules.control_policy import ControlPolicy
+    from modules.models import Telemetry
+    from modules.rsu_registry import RSURegistry
+    from modules.runtime_dashboard import RuntimeDashboard
+    from modules.scheduler import Scheduler
+    from modules.task_manager import TaskManager
+    from yafs_core import MinimalFogSim
 
-    # Start SUMO process or connect to an existing one
+    traci = _load_traci()
+    sumo_cfg = _resolve_path(sumo_cfg)
+    rsu_config = _resolve_path(rsu_config)
+
+    fog = MinimalFogSim()
+    registry = RSURegistry.from_json(rsu_config, capacity_default=rsu_capacity_default)
+    task_manager = TaskManager(task_deadline_s=task_deadline, compute_time_s=2.0)
+    scheduler = Scheduler(registry, task_manager, overload_threshold=overload_queue_threshold)
+    control_policy = ControlPolicy(reroute_cooldown_s=reroute_cooldown)
+    dash = RuntimeDashboard(enabled=dashboard, max_rows=dashboard_rows)
+    dash.configure_rsus(registry.all_rsus())
+
+    # Start SUMO process or connect to an existing one.
     if start_sumo:
-        # traci.start will set the remote port; pass it via the port= argument
         cmd = ["sumo-gui" if use_gui else "sumo", "-c", sumo_cfg, "--step-length", "1"]
         traci.start(cmd, port=port)
     else:
-        # connect to already-running SUMO (must be started with --remote-port)
-        # traci.init handles retries internally (numRetries × 1 s backoff)
         traci.init(port=port, numRetries=10, host="127.0.0.1")
 
     try:
         step = 0
         while step < steps:
+            dash.begin_step(step=step, steps_total=steps)
             traci.simulationStep()
-            for veh in traci.vehicle.getIDList():
+            live_vehicle_ids = set(traci.vehicle.getIDList())
+            task_manager.prune_missing(live_vehicle_ids)
+            queue_depths = task_manager.active_queue_depths()
+
+            # Capture telemetry, perform RSU scheduling, and enqueue fog feedback.
+            for veh in live_vehicle_ids:
+                position = traci.vehicle.getPosition(veh)
+                speed = float(traci.vehicle.getSpeed(veh))
+                nearest = registry.nearest_rsu(position)
+
+                telemetry = Telemetry(
+                    vehicle_id=veh,
+                    position=(float(position[0]), float(position[1])),
+                    speed=speed,
+                    step=step,
+                    observed_rsu=nearest.rsu_id,
+                )
+                decision = scheduler.schedule(telemetry, queue_depths)
+                task = task_manager.get(veh)
+                if task is None:
+                    continue
+
                 packet = {
-                    "id": veh,
-                    "position": traci.vehicle.getPosition(veh),
-                    "speed": traci.vehicle.getSpeed(veh),
-                    "time": step,
+                    "id": telemetry.vehicle_id,
+                    "position": telemetry.position,
+                    "speed": telemetry.speed,
+                    "time": telemetry.step,
+                    "region_id": telemetry.observed_rsu,
+                    "assigned_rsu": decision.execution_rsu,
+                    "owner_rsu": decision.owner_rsu,
+                    "task_id": task.task_id,
+                    "deadline_step": task.deadline_step,
+                    "scheduler_action": decision.action,
+                    "scheduler_reason": decision.reason,
                 }
-                fog.send_to_fog(packet)
+                fog.ingest(packet)
+
+                if decision.action != "keep_local":
+                    dash.record_scheduler(
+                        vehicle_id=veh,
+                        action=decision.action,
+                        reason=decision.reason,
+                        src_rsu=decision.observed_rsu,
+                        exec_rsu=decision.execution_rsu,
+                    )
+                    print(
+                        f"[SCHED] veh={veh} obs={decision.observed_rsu} owner={decision.owner_rsu} "
+                        f"exec={decision.execution_rsu} action={decision.action} reason={decision.reason} "
+                        f"eta={decision.estimated_finish_step} ddl={decision.deadline_step}",
+                        flush=True,
+                    )
+
+                command = control_policy.build_command(telemetry, decision, task)
+                dash.update_vehicle(
+                    vehicle_id=telemetry.vehicle_id,
+                    position=telemetry.position,
+                    observed_rsu=decision.observed_rsu,
+                    execution_rsu=decision.execution_rsu,
+                    speed=telemetry.speed,
+                    action=command.action,
+                    reroute=command.reroute,
+                )
+                fog.submit_feedback(command.to_packet())
 
             fog.tick()
-            # Pull any feedback commands from fog and apply to SUMO via TraCI
-            try:
-                feedbacks = fog.drain_feedback()
-            except Exception:
-                feedbacks = []
+            feedbacks = fog.drain_feedback()
+            _apply_feedback(traci, feedbacks, live_vehicle_ids, dashboard=dash)
 
-            for cmd in feedbacks:
-                vid = cmd.get("id")
-                speed = cmd.get("speed")
-                # Apply speed change if vehicle still exists
-                try:
-                    if vid in traci.vehicle.getIDList():
-                        # setSpeed sets the speed for the next simulation step
-                        traci.vehicle.setSpeed(vid, float(speed))
-                        # lightweight logging for verification
-                        print(f"[FOG->SUMO] Applied {cmd}", flush=True)
-                except Exception:
-                    # ignore any TraCI errors (vehicle may have left)
-                    pass
+            # Advance task compute progress after scheduling all vehicles in this step.
+            task_manager.tick_all(step_size_s=1.0)
+            current_queue_depths = task_manager.active_queue_depths()
+            dash.finish_step(live_vehicle_ids)
+            dash.set_snapshot(
+                step=step + 1,
+                steps_total=steps,
+                vehicles=len(live_vehicle_ids),
+                active_tasks=sum(current_queue_depths.values()),
+                queue_depths=current_queue_depths,
+            )
             step += 1
-            # Optional delay to slow down visible simulation in SUMO GUI
+
             if step_delay > 0:
                 time.sleep(step_delay)
     finally:
+        dash.close()
         try:
             traci.close()
         except Exception:
@@ -78,7 +198,14 @@ def main() -> None:
     p.add_argument("--start-sumo", action="store_true", help="Start SUMO from this script")
     p.add_argument("--gui", action="store_true", help="Start SUMO GUI when --start-sumo is used")
     p.add_argument("--steps", type=int, default=500, help="Number of simulation steps to run")
-    p.add_argument("--step-delay", type=float, default=0.0, help="Delay in seconds after each simulation step (for visible GUI playback)")
+    p.add_argument("--step-delay", type=float, default=0.0, help="Delay after each simulation step for GUI playback")
+    p.add_argument("--rsu-config", default="sumoXyafs/rsu_config.json", help="Path to RSU anchor configuration JSON")
+    p.add_argument("--task-deadline", type=float, default=2.0, help="Task deadline in simulation seconds")
+    p.add_argument("--overload-queue-threshold", type=int, default=20, help="Queue depth threshold for RSU overload")
+    p.add_argument("--reroute-cooldown", type=float, default=5.0, help="Minimum seconds between reroutes per vehicle")
+    p.add_argument("--rsu-capacity-default", type=int, default=20, help="Default RSU capacity if missing in config")
+    p.add_argument("--dashboard", action="store_true", help="Show a basic Tkinter runtime dashboard")
+    p.add_argument("--dashboard-rows", type=int, default=20, help="Max rows shown in dashboard event lists")
     args = p.parse_args()
 
     run_sumo_with_fog(
@@ -88,6 +215,13 @@ def main() -> None:
         use_gui=args.gui,
         steps=args.steps,
         step_delay=args.step_delay,
+        rsu_config=args.rsu_config,
+        task_deadline=args.task_deadline,
+        overload_queue_threshold=args.overload_queue_threshold,
+        reroute_cooldown=args.reroute_cooldown,
+        rsu_capacity_default=args.rsu_capacity_default,
+        dashboard=args.dashboard,
+        dashboard_rows=args.dashboard_rows,
     )
 
 
