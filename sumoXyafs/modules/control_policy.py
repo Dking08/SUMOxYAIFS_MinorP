@@ -64,7 +64,10 @@ class ControlPolicy:
         )
 
     def _should_reroute(self, telemetry: Telemetry, decision: SchedulingDecision) -> bool:
-        if decision.action not in {"migrate", "offload"} and telemetry.speed <= self.reroute_speed_threshold:
+        # Reroute is triggered by explicit handover/offload events, or by high speed.
+        is_handover_event = decision.action in {"migrate", "offload"}
+        is_high_speed = telemetry.speed > self.reroute_speed_threshold
+        if not is_handover_event and not is_high_speed:
             return False
 
         last = self._last_reroute_step.get(telemetry.vehicle_id)
