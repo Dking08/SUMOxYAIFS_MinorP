@@ -53,6 +53,41 @@ class ControlPolicyTests(unittest.TestCase):
         )
         self.assertFalse(c2.reroute)
 
+    def test_deadline_miss_sets_slow_down_action(self) -> None:
+        policy = ControlPolicy(speed_threshold=50.0, reroute_speed_threshold=50.0, reroute_cooldown_s=5.0)
+        task = TaskState(
+            task_id="t2",
+            vehicle_id="v2",
+            owner_rsu="rsu_1",
+            execution_rsu="rsu_1",
+            created_step=0,
+            deadline_step=2,
+            remaining_compute_s=0.5,
+            progress=0.8,
+            last_position=(0.0, 0.0),
+            last_speed=10.0,
+            migrations=0,
+        )
+        decision = SchedulingDecision(
+            vehicle_id="v2",
+            observed_rsu="rsu_1",
+            owner_rsu="rsu_1",
+            execution_rsu="rsu_1",
+            action="keep_local",
+            reason="same_region",
+            estimated_finish_step=3,
+            deadline_step=2,
+        )
+
+        cmd = policy.build_command(
+            Telemetry("v2", position=(0.0, 0.0), speed=10.0, step=3, observed_rsu="rsu_1"),
+            decision,
+            task,
+        )
+
+        self.assertEqual(cmd.action, "slow_down")
+        self.assertLess(cmd.speed, 10.0)
+
 
 if __name__ == "__main__":
     unittest.main()

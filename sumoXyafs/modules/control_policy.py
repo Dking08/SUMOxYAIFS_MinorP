@@ -24,14 +24,13 @@ class ControlPolicy:
         decision: SchedulingDecision,
         task: TaskState,
     ) -> ControlCommand:
-        target_speed = float(telemetry.speed)
-        action = "keep_speed"
+        current_speed = float(telemetry.speed)
+        target_speed = current_speed
         reasons: list[str] = []
 
         # The baseline control rule slows vehicles above threshold.
         if telemetry.speed > self.speed_threshold:
             target_speed = max(0.0, telemetry.speed * self.slow_factor)
-            action = "slow_down"
             reasons.append("speed_threshold")
 
         # Handover or overload introduces uncertainty; apply a softer cap.
@@ -43,6 +42,9 @@ class ControlPolicy:
         if telemetry.step > task.deadline_step:
             target_speed = min(target_speed, max(1.0, telemetry.speed * 0.7))
             reasons.append("deadline_missed")
+
+        # Keep action consistent with the computed speed command.
+        action = "slow_down" if target_speed < (current_speed - 1e-9) else "keep_speed"
 
         reroute = self._should_reroute(telemetry, decision)
         if reroute:
