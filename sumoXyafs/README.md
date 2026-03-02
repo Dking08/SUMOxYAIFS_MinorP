@@ -12,6 +12,14 @@ GUI:
 To enable a live runtime dashboard (terminal logs remain unchanged):
 ```python realtime.py --start-sumo --gui --sumo-cfg sumo/delhi/fog_test.sumocfg --steps 500 --step-delay 0.5 --rsu-config rsu_config.json --dashboard --dashboard-rows 25```
 
+Quick dashboard/policy notes: in the map panel, RSU circles are static anchors (node_id `1` green-ish, `2` olive, others blue), 
+vehicle dots are `red` when command is `slow_down`, `yellow` when execution RSU differs from observed RSU (migrate/offload path, with dashed link), and `cyan` when local/normal; each vehicle line points to its current execution RSU (fallback observed RSU). 
+The top cards show step/vehicles/tasks/commands/scheduler/queues, and hover gives details. 
+Reroute rule is: reroute if action is `migrate` or `offload`, or if speed is above reroute threshold (`--reroute-cooldown` only prevents spam per vehicle); 
+deadline rule is: new task gets `deadline_step = current_step + ceil(task_deadline_s)`, and sticky handover is kept only when `estimated_finish_step <= deadline_step`, where estimate is roughly `current_step + ceil(queue_depth + remaining_compute_s)`, otherwise migrate. 
+Overload rule is: an RSU is overloaded when queue depth reaches `min(overload_threshold, rsu_capacity)`, then offload target is nearest non-overloaded RSU by Euclidean distance. 
+Additional args which can be used: `--rsu-config`, `--task-deadline`, `--overload-queue-threshold`, `--reroute-cooldown`, `--rsu-capacity-default`, `--dashboard`, `--dashboard-rows` (compute time is currently fixed in code at 2s/task).
+
 Generate an initial RSU config from the SUMO net:
 ```python tools/generate_rsu_config.py --net-file sumo/delhi/osm.net.xml.gz --count 9 --output rsu_config.json```
 
@@ -24,3 +32,7 @@ Just keeping a note here, to present what "can-be-done", however not necessarily
 - Collision Avoidance (Fog computes collision risk, and sends braking commands to the vehicle)
 - Dynamic Routing (Fog+Cloud computes the best route and...)
 - Traffic light opt. - self-explanatory (however, this would require to export traffic-signal metrics from OSM, not sure if the current setup would work, not tested.)
+- switch to ETA based reroute policy,
+- current deadline estimation is queue_delay + compute_delay, however, a better service-time model should be implemented,
+- right now orchestration is mostly bridge-side, with YAFS ticking in parallel, could potentially move more delay/placement decisions into YAFS event flow,
+- and ofc a better observability metrics is required along with a better dashboard layout if possible (i am out of ideas for now).
