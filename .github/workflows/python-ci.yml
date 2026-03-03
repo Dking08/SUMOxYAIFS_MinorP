@@ -1,0 +1,34 @@
+name: Python Quality Check
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install tools
+        run: |
+          pip install ruff black
+
+      - name: Lint with Ruff
+        run: |
+          ruff check .
+
+      - name: Check formatting with Black
+        run: |
+          black --check .
+
+      - name: Compile Python files
+        run: |
+          find . -name "*.py" -exec python -m py_compile {} +
