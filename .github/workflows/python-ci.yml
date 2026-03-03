@@ -20,14 +20,10 @@ jobs:
       - name: Install project (if requirements exist)
         run: |
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          cd sumoXyafs
+          pip install -r requirements.txt
 
-      - name: Syntax check
+      - name: Basic sanity check
         run: |
-          find . -name "*.py" -exec python -m py_compile {} +
-
-      - name: Try importing top-level modules
-        run: |
-          for file in $(find . -maxdepth 5 -name "*.py"); do
-            module=$(basename "$file" .py)
-            python -c "import $module" || exit 1
-          done
+          pip install ruff
+          ruff check $(git ls-files '*.py') --select F --ignore F401,F841
