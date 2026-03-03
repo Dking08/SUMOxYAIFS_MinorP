@@ -1,12 +1,18 @@
-from yafs.topology import Topology
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from queue import Queue
+from typing import Optional
+
 from yafs.application import Application, Message
 from yafs.core import Sim
-from yafs.selection import First_ShortestPath
 from yafs.placement import Placement
-from queue import Queue
+from yafs.selection import First_ShortestPath
+from yafs.topology import Topology
+
 from population import SUMOPopulation
-import json
-from modules.fog_processor import FogProcessor
+
 
 class FogPlacement(Placement):
     def __init__(self, name, mapping, app=None):
@@ -15,103 +21,91 @@ class FogPlacement(Placement):
         self.app = app
 
     def initial_allocation(self, sim, app_name):
-        # Use YAFS APIs to deploy modules properly so alloc_module/alloc_DES are populated.
-        # Get services definition from the registered app in sim
         if app_name not in sim.apps:
-            # Nothing to do if app not registered
             return
         app = sim.apps[app_name]
         services = getattr(app, "services", {})
 
+        # Deploy modules using YAFS APIs to keep alloc_module/alloc_DES populated.
         for module, node in self.mapping.items():
             ids = [node] if isinstance(node, int) else list(node)
-            # deploy_module will create DES processes and populate sim.alloc_module/alloc_DES
             try:
                 sim.deploy_module(app_name, module, services[module], ids)
             except Exception:
-                # fallback: ignore and continue
                 continue
 
 
 class MinimalFogSim:
-    def __init__(self):
-        with open("minimal_topology.json") as f:
-            topo_data = json.load(f)
+    def __init__(self, topology_path: Optional[str] = None):
+        base_dir = Path(__file__).resolve().parent
+        topo_path = Path(topology_path) if topology_path else (base_dir / "minimal_topology.json")
+        if not topo_path.exists():
+            raise FileNotFoundError(f"Topology file not found: {topo_path}")
 
+        topo_data = json.loads(topo_path.read_text(encoding="utf-8"))
         self.topo = Topology()
         self.topo.load(topo_data)
         self.fog_node = 1
 
-        # App
         self.app = Application(name="vehicular_app")
+        self.app.set_modules(
+            [
+                {"Sensor": {"Type": Application.TYPE_SOURCE}},
+                {"FogProcessor": {"Type": Application.TYPE_SINK}},
+            ]
+        )
 
-        # Modules (must be list of dicts!)
-        self.app.set_modules([
-            {"Sensor": {"Type": Application.TYPE_SOURCE}},
-            {"FogProcessor": {"Type": Application.TYPE_SINK}}
-        ])
-
-        # Message (src, dst)
-        self.msg = Message(
+        msg = Message(
             "telemetry",
             "Sensor",
             "FogProcessor",
             instructions=50,
-            bytes=100
+            bytes=100,
         )
+        self.app.add_service_module("Sensor", "FogProcessor", msg)
 
-        self.app.add_service_module("Sensor", "FogProcessor", self.msg)
-
-        # SUMO → Fog queue
-        self.external_queue = Queue()
-
-        # Simple fog processor (single-node)
-        # Lower threshold for a more aggressive test (vehicles >5.0 m/s will be slowed)
-        self.processor = FogProcessor(speed_threshold=5.0)
-        # Population consumer
+        # External queues keep bridge data decoupled from the YAFS internals.
+        self.external_queue: Queue = Queue()
+        self.feedback_queue: Queue = Queue()
         self.pop = SUMOPopulation(self.app, self.external_queue)
 
         selector = First_ShortestPath()
-
         placement = FogPlacement(
             name="FogPlacement",
-            mapping={
-                "Sensor": self.fog_node,
-                "FogProcessor": self.fog_node
-            },
+            mapping={"Sensor": self.fog_node, "FogProcessor": self.fog_node},
             app=self.app,
         )
 
         self.sim = Sim(self.topo)
+        self.sim.deploy_app(self.app, placement=placement, selector=selector)
 
-        self.sim.deploy_app(
-            self.app,
-            placement=placement,
-            selector=selector,
-        )
-
-    def send_to_fog(self, packet):
+    def ingest(self, packet: dict) -> None:
         self.external_queue.put(packet)
-        # Also process immediately in the local fog processor (synchronous)
+
+    def send_to_fog(self, packet: dict) -> None:
+        self.ingest(packet)
+
+    def submit_feedback(self, command: dict) -> None:
+        self.feedback_queue.put(command)
+
+    def drain_feedback(self) -> list[dict]:
+        out: list[dict] = []
+        while not self.feedback_queue.empty():
+            out.append(self.feedback_queue.get())
+        return out
+
+    def tick(self) -> None:
+        # Flush incoming telemetry into YAFS before advancing simulation time.
         try:
-            self.processor.process(packet)
+            self.pop.run(self.sim, self.topo)
         except Exception:
             pass
 
-    def drain_feedback(self):
-        """Return a list of feedback commands produced by the FogProcessor."""
-        try:
-            return self.processor.drain_feedback()
-        except Exception:
-            return []
-
-    def tick(self):
-        # Advance the DES by one time unit relative to current simulation time
+        # Advance the DES by one simulation-time unit per SUMO step.
         try:
             current = self.sim.env.now
             self.sim.run(current + 1)
         except Exception:
-            # Fallback: attempt a small advance
             try:
                 self.sim.run(self.sim.env.now + 0.001)
             except Exception:
