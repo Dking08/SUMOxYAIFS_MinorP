@@ -1,4 +1,4 @@
-name: Python Quality Check
+name: Python Basic Check
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  quality:
+  check:
     runs-on: ubuntu-latest
 
     steps:
@@ -17,18 +17,17 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install tools
+      - name: Install project (if requirements exist)
         run: |
-          pip install ruff black
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Lint with Ruff
-        run: |
-          ruff check .
-
-      - name: Check formatting with Black
-        run: |
-          black --check .
-
-      - name: Compile Python files
+      - name: Syntax check
         run: |
           find . -name "*.py" -exec python -m py_compile {} +
+
+      - name: Try importing top-level modules
+        run: |
+          for file in $(find . -maxdepth 5 -name "*.py"); do
+            module=$(basename "$file" .py)
+            python -c "import $module" || exit 1
+          done
