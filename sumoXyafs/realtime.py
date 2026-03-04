@@ -70,12 +70,13 @@ def _draw_rsu_pois(traci, rsus: list, layer: int = 5) -> None:
                 poi_id,
                 x=float(rsu.x),
                 y=float(rsu.y),
-                color=(255, 0, 0, 255),
+                # color=(255, 0, 0, 255),
+                color=(255, 255, 255, 255),
                 poiType="rsu",
                 layer=layer,
-                imgFile="",
-                width=14,
-                height=14,
+                imgFile="assets/rsu-icon.png",
+                width=20,
+                height=20,
                 angle=0.0,
             )
             traci.poi.setParameter(poi_id, "name", rsu.rsu_id)
