@@ -84,6 +84,35 @@ def _draw_rsu_pois(traci, rsus: list, layer: int = 5) -> None:
             pass
 
 
+# ADD vehicle text parameters for better visualization
+def _set_vehicle_text_params(
+    traci,
+    vehicle_id: str,
+    observed_rsu: str,
+    execution_rsu: str,
+    state: str,
+    speed_mps: float,
+    step: int,
+    task_id: str = "",
+) -> None:
+    speed_kmh = float(speed_mps) * 3.6
+    text = (
+        f"rsu={observed_rsu} exec={execution_rsu} "
+        f"state={state} v={speed_kmh:.1f}km/h"
+    )
+
+    try:
+        traci.vehicle.setParameter(vehicle_id, "current_rsu", observed_rsu)
+        traci.vehicle.setParameter(vehicle_id, "execution_rsu", execution_rsu)
+        traci.vehicle.setParameter(vehicle_id, "state", state)
+        traci.vehicle.setParameter(vehicle_id, "speed_kmh", f"{speed_kmh:.1f}")
+        traci.vehicle.setParameter(vehicle_id, "sim_step", str(step))
+        traci.vehicle.setParameter(vehicle_id, "task_id", task_id)
+        traci.vehicle.setParameter(vehicle_id, "vehicle_text", text)
+    except Exception:
+        pass
+
+
 def run_sumo_with_fog(
     sumo_cfg: str,
     port: int = 8873,
@@ -153,6 +182,16 @@ def run_sumo_with_fog(
                 decision = scheduler.schedule(telemetry, queue_depths)
                 task = task_manager.get(veh)
                 if task is None:
+                    _set_vehicle_text_params(
+                        traci,
+                        vehicle_id=telemetry.vehicle_id,
+                        observed_rsu=decision.observed_rsu,
+                        execution_rsu=decision.execution_rsu,
+                        state="no_task",
+                        speed_mps=telemetry.speed,
+                        step=telemetry.step,
+                        task_id="",
+                    )
                     continue
 
                 packet = {
@@ -186,6 +225,16 @@ def run_sumo_with_fog(
                     )
 
                 command = control_policy.build_command(telemetry, decision, task)
+                _set_vehicle_text_params(
+                    traci,
+                    vehicle_id=telemetry.vehicle_id,
+                    observed_rsu=decision.observed_rsu,
+                    execution_rsu=decision.execution_rsu,
+                    state=command.action,
+                    speed_mps=telemetry.speed,
+                    step=telemetry.step,
+                    task_id=task.task_id,
+                )
                 dash.update_vehicle(
                     vehicle_id=telemetry.vehicle_id,
                     position=telemetry.position,
