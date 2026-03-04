@@ -53,6 +53,36 @@ def _apply_feedback(traci, feedbacks: list[dict], live_vehicle_ids: set[str], da
             pass
 
 
+# Draw RSU locations as POIs in SUMO for better visualization
+def _draw_rsu_pois(traci, rsus: list, layer: int = 5) -> None:
+    existing_ids = set()
+    try:
+        existing_ids = set(traci.poi.getIDList())
+    except Exception:
+        pass
+
+    for rsu in rsus:
+        poi_id = f"rsu:{rsu.rsu_id}"
+        if poi_id in existing_ids:
+            continue
+        try:
+            traci.poi.add(
+                poi_id,
+                x=float(rsu.x),
+                y=float(rsu.y),
+                color=(255, 0, 0, 255),
+                poiType="rsu",
+                layer=layer,
+                imgFile="",
+                width=14,
+                height=14,
+                angle=0.0,
+            )
+            traci.poi.setParameter(poi_id, "name", rsu.rsu_id)
+        except Exception:
+            pass
+
+
 def run_sumo_with_fog(
     sumo_cfg: str,
     port: int = 8873,
@@ -94,6 +124,8 @@ def run_sumo_with_fog(
         traci.start(cmd, port=port)
     else:
         traci.init(port=port, numRetries=10, host="127.0.0.1")
+
+    _draw_rsu_pois(traci, registry.all_rsus())
 
     try:
         step = 0
