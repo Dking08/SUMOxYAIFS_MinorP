@@ -16,9 +16,9 @@ Quick dashboard/policy notes: in the map panel, RSU circles are static anchors (
 vehicle dots are `red` when command is `slow_down`, `yellow` when execution RSU differs from observed RSU (migrate/offload path, with dashed link), and `cyan` when local/normal; each vehicle line points to its current execution RSU (fallback observed RSU). 
 The top cards show step/vehicles/tasks/commands/scheduler/queues, and hover gives details. 
 Reroute rule is: reroute if action is `migrate` or `offload`, or if speed is above reroute threshold (`--reroute-cooldown` only prevents spam per vehicle); 
-deadline rule is: new task gets `deadline_step = current_step + ceil(task_deadline_s)`, and sticky handover is kept only when `estimated_finish_step <= deadline_step`, where estimate is roughly `current_step + ceil(queue_depth + remaining_compute_s)`, otherwise migrate. 
+deadline rule is: new task gets `deadline_step = current_step + ceil(task_deadline_s)`, and sticky handover is kept only when `estimated_finish_step <= deadline_step`, where estimate is roughly `current_step + ceil(queue_depth + remaining_compute_s + network_latency_s)`, otherwise migrate. 
 Overload rule is: an RSU is overloaded when queue depth reaches `min(overload_threshold, rsu_capacity)`, then offload target is nearest non-overloaded RSU by Euclidean distance. 
-Additional args which can be used: `--rsu-config`, `--task-deadline`, `--overload-queue-threshold`, `--reroute-cooldown`, `--rsu-capacity-default`, `--dashboard`, `--dashboard-rows` (compute time is currently fixed in code at 2s/task).
+Additional args which can be used: `--rsu-config`, `--task-deadline`, `--overload-queue-threshold`, `--distance-latency-base`, `--distance-latency-max`, `--distance-latency-norm`, `--reroute-cooldown`, `--rsu-capacity-default`, `--dashboard`, `--dashboard-rows` (compute time is currently fixed in code at 2s/task).
 
 Generate an initial RSU config from the SUMO net:
 ```python tools/generate_rsu_config.py --net-file sumo/delhi/osm.net.xml.gz --count 9 --output rsu_config.json```

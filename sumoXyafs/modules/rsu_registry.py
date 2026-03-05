@@ -72,6 +72,10 @@ class RSURegistry:
     def get(self, rsu_id: str) -> RSUNode:
         return self._by_id[rsu_id]
 
+    def distance_to_rsu(self, position: tuple[float, float], rsu_id: str) -> float:
+        rsu = self._by_id[rsu_id]
+        return self._distance(float(position[0]), float(position[1]), rsu.x, rsu.y)
+
     def nearest_rsu(self, position: tuple[float, float]) -> RSUNode:
         x, y = position
         best: Optional[RSUNode] = None
