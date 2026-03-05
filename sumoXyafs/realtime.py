@@ -100,7 +100,10 @@ def _set_vehicle_text_params(
         f"rsu={observed_rsu} exec={execution_rsu} "
         f"state={state} v={speed_kmh:.1f}km/h"
     )
-
+    if state == 'keep_speed':
+        color = (0,0,255,255)
+    else:
+        color = (255,0,0,255)
     try:
         traci.vehicle.setParameter(vehicle_id, "current_rsu", observed_rsu)
         traci.vehicle.setParameter(vehicle_id, "execution_rsu", execution_rsu)
@@ -109,6 +112,7 @@ def _set_vehicle_text_params(
         traci.vehicle.setParameter(vehicle_id, "sim_step", str(step))
         traci.vehicle.setParameter(vehicle_id, "task_id", task_id)
         traci.vehicle.setParameter(vehicle_id, "vehicle_text", text)
+        traci.vehicle.setColor(vehicle_id, color)
     except Exception:
         pass
 
