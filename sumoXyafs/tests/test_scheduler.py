@@ -58,6 +58,46 @@ class SchedulerTests(unittest.TestCase):
         self.assertEqual(d0.execution_rsu, "rsu_2")
         self.assertEqual(d0.estimated_finish_step, 7)
 
+    def test_adaptive_latency_increases_eta_when_enabled(self) -> None:
+        scheduler = Scheduler(
+            self.registry,
+            TaskManager(task_deadline_s=5.0, compute_time_s=2.0),
+            overload_threshold=2,
+            distance_latency_base_s=0.0,
+            distance_latency_max_s=0.0,
+            distance_latency_norm_m=50.0,
+            adaptive_latency_eta=True,
+            adaptive_latency_alpha=1.0,
+            adaptive_latency_weight=2.0,
+        )
+
+        scheduler.set_measured_link_latency(0.75)
+        d0 = scheduler.schedule(
+            Telemetry(vehicle_id="v4", position=(0.0, 0.0), speed=8.0, step=0, observed_rsu="rsu_1"),
+            queue_depths={"rsu_1": 0},
+        )
+
+        self.assertEqual(d0.action, "keep_local")
+        self.assertEqual(d0.estimated_finish_step, 5)
+
+    def test_adaptive_latency_ewma_updates(self) -> None:
+        scheduler = Scheduler(
+            self.registry,
+            TaskManager(task_deadline_s=5.0, compute_time_s=2.0),
+            adaptive_latency_eta=True,
+            adaptive_latency_alpha=0.5,
+            adaptive_latency_weight=1.0,
+        )
+
+        scheduler.set_measured_link_latency(1.0)
+        scheduler.set_measured_link_latency(0.0)
+        d0 = scheduler.schedule(
+            Telemetry(vehicle_id="v5", position=(0.0, 0.0), speed=8.0, step=0, observed_rsu="rsu_1"),
+            queue_depths={"rsu_1": 0},
+        )
+
+        self.assertEqual(d0.estimated_finish_step, 4)
+
 
 if __name__ == "__main__":
     unittest.main()

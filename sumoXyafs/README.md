@@ -19,7 +19,12 @@ Reroute rule is: reroute if action is `migrate` or `offload`, or if speed is abo
 deadline rule is: new task gets `deadline_step = current_step + ceil(task_deadline_s)`, and sticky handover is kept only when `estimated_finish_step <= deadline_step`, where estimate is roughly `current_step + ceil(queue_depth + remaining_compute_s + network_latency_s)`, otherwise migrate. 
 Current network latency model is uncapped linear with distance: `network_latency_s = base + (max - base) * (distance_to_execution_rsu / norm)`.
 Overload rule is: an RSU is overloaded when queue depth reaches `min(overload_threshold, rsu_capacity)`, then offload target is nearest non-overloaded RSU by Euclidean distance. 
-Additional args which can be used: `--rsu-config`, `--task-deadline`, `--overload-queue-threshold`, `--distance-latency-base`, `--distance-latency-max`, `--distance-latency-norm`, `--reroute-cooldown`, `--rsu-capacity-default`, `--dashboard`, `--dashboard-rows` (compute time is currently fixed in code at 2s/task).
+Additional args which can be used: `--rsu-config`, `--task-deadline`, `--overload-queue-threshold`, `--distance-latency-base`, `--distance-latency-max`, `--distance-latency-norm`, `--adaptive-latency-eta`, `--adaptive-latency-alpha`, `--adaptive-latency-weight`, `--reroute-cooldown`, `--rsu-capacity-default`, `--dashboard`, `--dashboard-rows` (compute time is currently fixed in code at 2s/task).
+
+Adaptive ETA mode (`--adaptive-latency-eta`) keeps the existing distance-based latency term and adds an EWMA-smoothed measured YAFS link latency contribution:
+- `adaptive_link_latency_s <- (1-alpha)*prev + alpha*measured`
+- `network_latency_s <- distance_latency_s + adaptive_link_latency_s * weight`
+- This is opt-in and disabled by default to preserve legacy behavior.
 
 YAFS runtime traces are now written per run under `sumoXyafs/results/` as:
 - `yafs_runtime.csv` (event/service timeline: includes `time_emit`, `time_reception`, `service`, `TOPO.src`, `TOPO.dst`)
@@ -41,5 +46,5 @@ Just keeping a note here, to present what "can-be-done", however not necessarily
 - Traffic light opt. - self-explanatory (however, this would require to export traffic-signal metrics from OSM, not sure if the current setup would work, not tested.)
 - switch to ETA based reroute policy,
 - current deadline estimation is queue_delay + compute_delay, however, a better service-time model should be implemented,
-- current migration status: scheduling/task/control plus observed-RSU assignment moved into YAFS core adapter; Sensor/FogProcessor deployment is now RSU-node aware in YAFS placement, with SUMO I/O and visualization still bridge-side,
+- current migration status: scheduling/task/control plus observed-RSU assignment moved into YAFS core adapter; Sensor/FogProcessor deployment is now RSU-node aware in YAFS placement; optional adaptive ETA now uses measured YAFS link latency while SUMO I/O and visualization stay bridge-side,
 - observability migration note: core YAFS trace extraction is now in place, next can be dashboard cards and per-RSU/per-task trace attribution.

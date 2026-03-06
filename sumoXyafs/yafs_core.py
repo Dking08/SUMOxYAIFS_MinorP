@@ -53,6 +53,9 @@ class MinimalFogSim:
         distance_latency_base_s: float = 0.0,
         distance_latency_max_s: float = 0.0,
         distance_latency_norm_m: float = 500.0,
+        adaptive_latency_eta: bool = False,
+        adaptive_latency_alpha: float = 0.25,
+        adaptive_latency_weight: float = 1.0,
         results_prefix: Optional[str] = None,
     ):
         base_dir = Path(__file__).resolve().parent
@@ -118,6 +121,9 @@ class MinimalFogSim:
                 distance_latency_base_s=distance_latency_base_s,
                 distance_latency_max_s=distance_latency_max_s,
                 distance_latency_norm_m=distance_latency_norm_m,
+                adaptive_latency_eta=adaptive_latency_eta,
+                adaptive_latency_alpha=adaptive_latency_alpha,
+                adaptive_latency_weight=adaptive_latency_weight,
             )
             self.control_policy = ControlPolicy(reroute_cooldown_s=reroute_cooldown_s)
 
@@ -188,6 +194,8 @@ class MinimalFogSim:
         feedbacks = self.drain_feedback()
         feedback_by_vehicle = {str(fb.get("id", "")): fb for fb in feedbacks}
         self._last_metrics_snapshot = self._collect_metrics_snapshot()
+        if self.scheduler is not None:
+            self.scheduler.set_measured_link_latency(self._last_metrics_snapshot.get("avg_link_latency_s", 0.0))
 
         # Match legacy behavior: task completion advances once per outer SUMO step.
         self.task_manager.tick_all(step_size_s=1.0)

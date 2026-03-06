@@ -130,6 +130,9 @@ def run_sumo_with_fog(
     distance_latency_base: float = 0.0,
     distance_latency_max: float = 0.0,
     distance_latency_norm: float = 500.0,
+    adaptive_latency_eta: bool = False,
+    adaptive_latency_alpha: float = 0.25,
+    adaptive_latency_weight: float = 1.0,
     reroute_cooldown: float = 5.0,
     rsu_capacity_default: int = 20,
     dashboard: bool = False,
@@ -154,6 +157,9 @@ def run_sumo_with_fog(
         distance_latency_base_s=distance_latency_base,
         distance_latency_max_s=distance_latency_max,
         distance_latency_norm_m=distance_latency_norm,
+        adaptive_latency_eta=adaptive_latency_eta,
+        adaptive_latency_alpha=adaptive_latency_alpha,
+        adaptive_latency_weight=adaptive_latency_weight,
     )
     dash = RuntimeDashboard(enabled=dashboard, max_rows=dashboard_rows)
     dash.configure_rsus(registry.all_rsus())
@@ -286,6 +292,9 @@ def main() -> None:
     p.add_argument("--distance-latency-base", type=float, default=0.0, help="Base link latency (s) added to ETA")
     p.add_argument("--distance-latency-max", type=float, default=0.0, help="Latency term (s) at distance == --distance-latency-norm")
     p.add_argument("--distance-latency-norm", type=float, default=500.0, help="Distance (m) scale for uncapped linear latency growth")
+    p.add_argument("--adaptive-latency-eta", action="store_true", help="Blend measured YAFS link latency into ETA model")
+    p.add_argument("--adaptive-latency-alpha", type=float, default=0.25, help="EWMA smoothing factor for measured link latency [0,1]")
+    p.add_argument("--adaptive-latency-weight", type=float, default=1.0, help="Multiplier for measured link latency contribution to ETA")
     p.add_argument("--reroute-cooldown", type=float, default=5.0, help="Minimum seconds between reroutes per vehicle")
     p.add_argument("--rsu-capacity-default", type=int, default=20, help="Default RSU capacity if missing in config")
     p.add_argument("--dashboard", action="store_true", help="Show a basic Tkinter runtime dashboard")
@@ -305,6 +314,9 @@ def main() -> None:
         distance_latency_base=args.distance_latency_base,
         distance_latency_max=args.distance_latency_max,
         distance_latency_norm=args.distance_latency_norm,
+        adaptive_latency_eta=args.adaptive_latency_eta,
+        adaptive_latency_alpha=args.adaptive_latency_alpha,
+        adaptive_latency_weight=args.adaptive_latency_weight,
         reroute_cooldown=args.reroute_cooldown,
         rsu_capacity_default=args.rsu_capacity_default,
         dashboard=args.dashboard,
