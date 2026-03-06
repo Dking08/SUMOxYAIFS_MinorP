@@ -35,5 +35,5 @@ Just keeping a note here, to present what "can-be-done", however not necessarily
 - Traffic light opt. - self-explanatory (however, this would require to export traffic-signal metrics from OSM, not sure if the current setup would work, not tested.)
 - switch to ETA based reroute policy,
 - current deadline estimation is queue_delay + compute_delay, however, a better service-time model should be implemented,
-- current migration status: scheduling/task/control plus observed-RSU assignment moved into YAFS core adapter, with SUMO I/O and visualization still bridge-side,
+- current migration status: scheduling/task/control plus observed-RSU assignment moved into YAFS core adapter; Sensor/FogProcessor deployment is now RSU-node aware in YAFS placement, with SUMO I/O and visualization still bridge-side,
 - and ofc a better observability metrics is required along with a better dashboard layout if possible (i am out of ideas for now).

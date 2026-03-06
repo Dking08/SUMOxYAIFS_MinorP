@@ -80,12 +80,14 @@ class MinimalFogSim:
         )
         self.app.add_service_module("Sensor", "FogProcessor", msg)
 
+        self.rsu_registry = rsu_registry
+        self.processor_nodes = self._resolve_processor_nodes()
+
         # External queues keep bridge data decoupled from the YAFS internals.
         self.external_queue: Queue = Queue()
         self.feedback_queue: Queue = Queue()
-        self.pop = SUMOPopulation(self.app, self.external_queue)
+        self.pop = SUMOPopulation(self.app, self.external_queue, rsu_registry=self.rsu_registry)
 
-        self.rsu_registry = rsu_registry
         self.task_manager = None
         self.scheduler = None
         self.control_policy = None
@@ -104,7 +106,7 @@ class MinimalFogSim:
         selector = First_ShortestPath()
         placement = FogPlacement(
             name="FogPlacement",
-            mapping={"Sensor": self.fog_node, "FogProcessor": self.fog_node},
+            mapping={"Sensor": self.processor_nodes, "FogProcessor": self.processor_nodes},
             app=self.app,
         )
 
@@ -199,6 +201,14 @@ class MinimalFogSim:
             step=telemetry.step,
             observed_rsu=observed_rsu,
         )
+
+    def _resolve_processor_nodes(self) -> list[int]:
+        if self.rsu_registry is None:
+            return [self.fog_node]
+
+        known_nodes = set(self.topo.G.nodes)
+        nodes = sorted({r.node_id for r in self.rsu_registry.all_rsus() if r.node_id in known_nodes})
+        return nodes if nodes else [self.fog_node]
 
     def prune_missing(self, live_vehicle_ids: set[str]) -> None:
         if self.task_manager is None:
