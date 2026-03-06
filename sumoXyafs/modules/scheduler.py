@@ -93,7 +93,7 @@ class Scheduler:
         if self.distance_latency_max_s <= 0.0:
             return 0.0
 
-        # Normalize distance into [0, 1] and interpolate base..max latency.
+        # Use uncapped linear latency growth proportional to RSU distance.
         distance_m = self.rsu_registry.distance_to_rsu(position, execution_rsu)
-        normalized = min(1.0, distance_m / self.distance_latency_norm_m)
+        normalized = distance_m / self.distance_latency_norm_m
         return self.distance_latency_base_s + (self.distance_latency_max_s - self.distance_latency_base_s) * normalized
