@@ -45,10 +45,17 @@ class TaskManager:
 
         return state
 
-    def estimate_finish_step(self, state: TaskState, queue_depth: int, now_step: int) -> int:
+    def estimate_finish_step(
+        self,
+        state: TaskState,
+        queue_depth: int,
+        now_step: int,
+        network_latency_s: float = 0.0,
+    ) -> int:
         queue_delay = max(0.0, float(queue_depth))
         compute_delay = max(0.0, float(state.remaining_compute_s))
-        return now_step + int(math.ceil(queue_delay + compute_delay))
+        network_delay = max(0.0, float(network_latency_s))
+        return now_step + int(math.ceil(queue_delay + compute_delay + network_delay))
 
     def migrate(self, state: TaskState, new_owner_rsu: str, new_execution_rsu: str) -> None:
         state.owner_rsu = new_owner_rsu

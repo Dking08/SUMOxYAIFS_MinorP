@@ -127,6 +127,9 @@ def run_sumo_with_fog(
     rsu_config: str = "sumoXyafs/rsu_config.json",
     task_deadline: float = 2.0,
     overload_queue_threshold: int = 20,
+    distance_latency_base: float = 0.0,
+    distance_latency_max: float = 0.0,
+    distance_latency_norm: float = 500.0,
     reroute_cooldown: float = 5.0,
     rsu_capacity_default: int = 20,
     dashboard: bool = False,
@@ -147,7 +150,14 @@ def run_sumo_with_fog(
     fog = MinimalFogSim()
     registry = RSURegistry.from_json(rsu_config, capacity_default=rsu_capacity_default)
     task_manager = TaskManager(task_deadline_s=task_deadline, compute_time_s=2.0)
-    scheduler = Scheduler(registry, task_manager, overload_threshold=overload_queue_threshold)
+    scheduler = Scheduler(
+        registry,
+        task_manager,
+        overload_threshold=overload_queue_threshold,
+        distance_latency_base_s=distance_latency_base,
+        distance_latency_max_s=distance_latency_max,
+        distance_latency_norm_m=distance_latency_norm,
+    )
     control_policy = ControlPolicy(reroute_cooldown_s=reroute_cooldown)
     dash = RuntimeDashboard(enabled=dashboard, max_rows=dashboard_rows)
     dash.configure_rsus(registry.all_rsus())
@@ -288,6 +298,9 @@ def main() -> None:
     p.add_argument("--rsu-config", default="sumoXyafs/rsu_config.json", help="Path to RSU anchor configuration JSON")
     p.add_argument("--task-deadline", type=float, default=2.0, help="Task deadline in simulation seconds")
     p.add_argument("--overload-queue-threshold", type=int, default=20, help="Queue depth threshold for RSU overload")
+    p.add_argument("--distance-latency-base", type=float, default=0.0, help="Base link latency (s) added to ETA")
+    p.add_argument("--distance-latency-max", type=float, default=0.0, help="Latency term (s) at distance == --distance-latency-norm")
+    p.add_argument("--distance-latency-norm", type=float, default=500.0, help="Distance (m) scale for uncapped linear latency growth")
     p.add_argument("--reroute-cooldown", type=float, default=5.0, help="Minimum seconds between reroutes per vehicle")
     p.add_argument("--rsu-capacity-default", type=int, default=20, help="Default RSU capacity if missing in config")
     p.add_argument("--dashboard", action="store_true", help="Show a basic Tkinter runtime dashboard")
@@ -304,6 +317,9 @@ def main() -> None:
         rsu_config=args.rsu_config,
         task_deadline=args.task_deadline,
         overload_queue_threshold=args.overload_queue_threshold,
+        distance_latency_base=args.distance_latency_base,
+        distance_latency_max=args.distance_latency_max,
+        distance_latency_norm=args.distance_latency_norm,
         reroute_cooldown=args.reroute_cooldown,
         rsu_capacity_default=args.rsu_capacity_default,
         dashboard=args.dashboard,
