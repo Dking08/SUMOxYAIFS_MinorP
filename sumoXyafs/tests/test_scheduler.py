@@ -58,6 +58,25 @@ class SchedulerTests(unittest.TestCase):
         self.assertEqual(d0.execution_rsu, "rsu_2")
         self.assertEqual(d0.estimated_finish_step, 7)
 
+    def test_distance_error_scales_distance_latency(self) -> None:
+        scheduler = Scheduler(
+            self.registry,
+            TaskManager(task_deadline_s=5.0, compute_time_s=2.0),
+            overload_threshold=2,
+            distance_latency_base_s=0.0,
+            distance_latency_max_s=2.0,
+            distance_latency_norm_m=50.0,
+            distance_error=0.5,
+        )
+
+        d0 = scheduler.schedule(
+            Telemetry(vehicle_id="v3_err", position=(0.0, 0.0), speed=8.0, step=0, observed_rsu="rsu_1"),
+            queue_depths={"rsu_1": 3, "rsu_2": 0},
+        )
+        self.assertEqual(d0.action, "offload")
+        self.assertEqual(d0.execution_rsu, "rsu_2")
+        self.assertEqual(d0.estimated_finish_step, 9)
+
     def test_adaptive_latency_increases_eta_when_enabled(self) -> None:
         scheduler = Scheduler(
             self.registry,

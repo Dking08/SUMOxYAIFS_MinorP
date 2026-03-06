@@ -130,6 +130,7 @@ def run_sumo_with_fog(
     distance_latency_base: float = 0.0,
     distance_latency_max: float = 0.0,
     distance_latency_norm: float = 500.0,
+    distance_error: float = 0.0,
     adaptive_latency_eta: bool = False,
     adaptive_latency_alpha: float = 0.25,
     adaptive_latency_weight: float = 1.0,
@@ -157,6 +158,7 @@ def run_sumo_with_fog(
         distance_latency_base_s=distance_latency_base,
         distance_latency_max_s=distance_latency_max,
         distance_latency_norm_m=distance_latency_norm,
+        distance_error=distance_error,
         adaptive_latency_eta=adaptive_latency_eta,
         adaptive_latency_alpha=adaptive_latency_alpha,
         adaptive_latency_weight=adaptive_latency_weight,
@@ -266,6 +268,20 @@ def run_sumo_with_fog(
                     f"link={metrics.get('avg_link_latency_s', 0.0):.4f}s",
                     flush=True,
                 )
+                per_rsu = metrics.get("per_rsu", {})
+                if isinstance(per_rsu, dict) and per_rsu:
+                    top = sorted(
+                        per_rsu.items(),
+                        key=lambda item: item[1].get("messages", 0),
+                        reverse=True,
+                    )[:2]
+                    for rsu_id, rsu_stats in top:
+                        print(
+                            f"[YAFS-RSU] step={step + 1} rsu={rsu_id} messages={rsu_stats.get('messages', 0)} "
+                            f"e2e={rsu_stats.get('avg_end_to_end_s', 0.0):.4f}s "
+                            f"service={rsu_stats.get('avg_service_s', 0.0):.4f}s",
+                            flush=True,
+                        )
             step += 1
 
             if step_delay > 0:
@@ -292,6 +308,7 @@ def main() -> None:
     p.add_argument("--distance-latency-base", type=float, default=0.0, help="Base link latency (s) added to ETA")
     p.add_argument("--distance-latency-max", type=float, default=0.0, help="Latency term (s) at distance == --distance-latency-norm")
     p.add_argument("--distance-latency-norm", type=float, default=500.0, help="Distance (m) scale for uncapped linear latency growth")
+    p.add_argument("--distance-error", type=float, default=0.0, help="Relative distance latency error factor (distance_latency += distance_error * distance_latency)")
     p.add_argument("--adaptive-latency-eta", action="store_true", help="Blend measured YAFS link latency into ETA model")
     p.add_argument("--adaptive-latency-alpha", type=float, default=0.25, help="EWMA smoothing factor for measured link latency [0,1]")
     p.add_argument("--adaptive-latency-weight", type=float, default=1.0, help="Multiplier for measured link latency contribution to ETA")
@@ -314,6 +331,7 @@ def main() -> None:
         distance_latency_base=args.distance_latency_base,
         distance_latency_max=args.distance_latency_max,
         distance_latency_norm=args.distance_latency_norm,
+        distance_error=args.distance_error,
         adaptive_latency_eta=args.adaptive_latency_eta,
         adaptive_latency_alpha=args.adaptive_latency_alpha,
         adaptive_latency_weight=args.adaptive_latency_weight,

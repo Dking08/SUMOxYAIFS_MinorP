@@ -15,6 +15,7 @@ class Scheduler:
         distance_latency_base_s: float = 0.0,
         distance_latency_max_s: float = 0.0,
         distance_latency_norm_m: float = 500.0,
+        distance_error: float = 0.0,
         adaptive_latency_eta: bool = False,
         adaptive_latency_alpha: float = 0.25,
         adaptive_latency_weight: float = 1.0,
@@ -25,6 +26,7 @@ class Scheduler:
         self.distance_latency_base_s = max(0.0, float(distance_latency_base_s))
         self.distance_latency_max_s = max(self.distance_latency_base_s, float(distance_latency_max_s))
         self.distance_latency_norm_m = max(1.0, float(distance_latency_norm_m))
+        self.distance_error = max(0.0, float(distance_error))
         self.adaptive_latency_eta = bool(adaptive_latency_eta)
         self.adaptive_latency_alpha = min(1.0, max(0.0, float(adaptive_latency_alpha)))
         self.adaptive_latency_weight = max(0.0, float(adaptive_latency_weight))
@@ -114,4 +116,5 @@ class Scheduler:
         # Use uncapped linear latency growth proportional to RSU distance.
         distance_m = self.rsu_registry.distance_to_rsu(position, execution_rsu)
         normalized = distance_m / self.distance_latency_norm_m
-        return self.distance_latency_base_s + (self.distance_latency_max_s - self.distance_latency_base_s) * normalized
+        distance_latency = self.distance_latency_base_s + (self.distance_latency_max_s - self.distance_latency_base_s) * normalized
+        return distance_latency + (self.distance_error * distance_latency)

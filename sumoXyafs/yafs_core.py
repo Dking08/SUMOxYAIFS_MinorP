@@ -53,6 +53,7 @@ class MinimalFogSim:
         distance_latency_base_s: float = 0.0,
         distance_latency_max_s: float = 0.0,
         distance_latency_norm_m: float = 500.0,
+        distance_error: float = 0.0,
         adaptive_latency_eta: bool = False,
         adaptive_latency_alpha: float = 0.25,
         adaptive_latency_weight: float = 1.0,
@@ -82,7 +83,9 @@ class MinimalFogSim:
             "avg_service_s": 0.0,
             "avg_link_latency_s": 0.0,
             "messages": 0,
+            "per_rsu": {},
         }
+        self._node_to_rsu_ids = self._build_node_to_rsu_ids()
 
         self.app = Application(name="vehicular_app")
         self.app.set_modules(
@@ -121,6 +124,7 @@ class MinimalFogSim:
                 distance_latency_base_s=distance_latency_base_s,
                 distance_latency_max_s=distance_latency_max_s,
                 distance_latency_norm_m=distance_latency_norm_m,
+                distance_error=distance_error,
                 adaptive_latency_eta=adaptive_latency_eta,
                 adaptive_latency_alpha=adaptive_latency_alpha,
                 adaptive_latency_weight=adaptive_latency_weight,
@@ -276,6 +280,7 @@ class MinimalFogSim:
         avg_service = 0.0
         avg_link_latency = 0.0
         message_count = 0
+        per_rsu_acc: dict[str, dict[str, float]] = {}
 
         if events:
             total_end_to_end = 0.0
@@ -287,9 +292,32 @@ class MinimalFogSim:
                     service = float(row.get("service", 0.0))
                 except Exception:
                     continue
+                e2e = max(0.0, reception - emit)
+                srv = max(0.0, service)
                 total_end_to_end += max(0.0, reception - emit)
                 total_service += max(0.0, service)
                 message_count += 1
+
+                try:
+                    node_dst = int(row.get("TOPO.dst", -1))
+                except Exception:
+                    node_dst = -1
+
+                rsu_ids = self._node_to_rsu_ids.get(node_dst, [])
+                for rsu_id in rsu_ids:
+                    bucket = per_rsu_acc.setdefault(
+                        rsu_id,
+                        {
+                            "events": 0.0,
+                            "messages": 0.0,
+                            "sum_end_to_end_s": 0.0,
+                            "sum_service_s": 0.0,
+                        },
+                    )
+                    bucket["events"] += 1.0
+                    bucket["messages"] += 1.0
+                    bucket["sum_end_to_end_s"] += e2e
+                    bucket["sum_service_s"] += srv
 
             if message_count > 0:
                 avg_end_to_end = total_end_to_end / message_count
@@ -308,6 +336,16 @@ class MinimalFogSim:
             if link_count > 0:
                 avg_link_latency = total_link_latency / link_count
 
+        per_rsu: dict[str, dict] = {}
+        for rsu_id, bucket in per_rsu_acc.items():
+            count = max(1.0, bucket["messages"])
+            per_rsu[rsu_id] = {
+                "events": int(bucket["events"]),
+                "messages": int(bucket["messages"]),
+                "avg_end_to_end_s": bucket["sum_end_to_end_s"] / count,
+                "avg_service_s": bucket["sum_service_s"] / count,
+            }
+
         return {
             "events": len(events),
             "links": len(links),
@@ -315,6 +353,7 @@ class MinimalFogSim:
             "avg_service_s": avg_service,
             "avg_link_latency_s": avg_link_latency,
             "messages": message_count,
+            "per_rsu": per_rsu,
         }
 
     def _read_new_csv_rows(self, csv_path: Path, is_event: bool) -> list[dict]:
@@ -338,3 +377,12 @@ class MinimalFogSim:
             self._link_cursor = len(reader)
 
         return reader[start:]
+
+    def _build_node_to_rsu_ids(self) -> dict[int, list[str]]:
+        out: dict[int, list[str]] = {}
+        if self.rsu_registry is None:
+            return out
+
+        for rsu in self.rsu_registry.all_rsus():
+            out.setdefault(int(rsu.node_id), []).append(rsu.rsu_id)
+        return out
