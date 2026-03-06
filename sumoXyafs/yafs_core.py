@@ -139,17 +139,18 @@ class MinimalFogSim:
 
         # Keep telemetry ingress explicit so YAFS remains the transport/compute timeline.
         for telemetry in telemetry_batch:
-            decision = self.scheduler.schedule(telemetry, queue_depths)
-            task = self.task_manager.get(telemetry.vehicle_id)
+            normalized = self._normalize_telemetry(telemetry)
+            decision = self.scheduler.schedule(normalized, queue_depths)
+            task = self.task_manager.get(normalized.vehicle_id)
             if task is None:
                 continue
 
             packet = {
-                "id": telemetry.vehicle_id,
-                "position": telemetry.position,
-                "speed": telemetry.speed,
-                "time": telemetry.step,
-                "region_id": telemetry.observed_rsu,
+                "id": normalized.vehicle_id,
+                "position": normalized.position,
+                "speed": normalized.speed,
+                "time": normalized.step,
+                "region_id": normalized.observed_rsu,
                 "assigned_rsu": decision.execution_rsu,
                 "owner_rsu": decision.owner_rsu,
                 "task_id": task.task_id,
@@ -158,7 +159,7 @@ class MinimalFogSim:
                 "scheduler_reason": decision.reason,
             }
             self.ingest(packet)
-            command = self.control_policy.build_command(telemetry, decision, task)
+            command = self.control_policy.build_command(normalized, decision, task)
             feedback = command.to_packet()
             self.submit_feedback(feedback)
             records.append({"decision": decision, "feedback": feedback})
@@ -185,6 +186,19 @@ class MinimalFogSim:
                 }
             )
         return out
+
+    def _normalize_telemetry(self, telemetry: Telemetry) -> Telemetry:
+        observed_rsu = telemetry.observed_rsu
+        if not observed_rsu:
+            observed_rsu = self.rsu_registry.nearest_rsu(telemetry.position).rsu_id
+
+        return Telemetry(
+            vehicle_id=telemetry.vehicle_id,
+            position=telemetry.position,
+            speed=telemetry.speed,
+            step=telemetry.step,
+            observed_rsu=observed_rsu,
+        )
 
     def prune_missing(self, live_vehicle_ids: set[str]) -> None:
         if self.task_manager is None:

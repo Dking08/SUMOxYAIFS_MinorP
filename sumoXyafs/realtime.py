@@ -182,14 +182,13 @@ def run_sumo_with_fog(
             for veh in live_vehicle_ids:
                 position = traci.vehicle.getPosition(veh)
                 speed = float(traci.vehicle.getSpeed(veh))
-                nearest = registry.nearest_rsu(position)
 
                 telemetry = Telemetry(
                     vehicle_id=veh,
                     position=(float(position[0]), float(position[1])),
                     speed=speed,
                     step=step,
-                    observed_rsu=nearest.rsu_id,
+                    observed_rsu="",
                 )
                 telemetry_batch.append(telemetry)
                 telemetry_by_vehicle[telemetry.vehicle_id] = telemetry
