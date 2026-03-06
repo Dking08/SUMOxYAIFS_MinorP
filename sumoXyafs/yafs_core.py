@@ -11,6 +11,11 @@ from yafs.placement import Placement
 from yafs.selection import First_ShortestPath
 from yafs.topology import Topology
 
+from modules.control_policy import ControlPolicy
+from modules.models import SchedulingDecision, Telemetry
+from modules.rsu_registry import RSURegistry
+from modules.scheduler import Scheduler
+from modules.task_manager import TaskManager
 from population import SUMOPopulation
 
 
@@ -36,7 +41,18 @@ class FogPlacement(Placement):
 
 
 class MinimalFogSim:
-    def __init__(self, topology_path: Optional[str] = None):
+    def __init__(
+        self,
+        topology_path: Optional[str] = None,
+        rsu_registry: Optional[RSURegistry] = None,
+        task_deadline_s: float = 2.0,
+        compute_time_s: float = 2.0,
+        overload_threshold: int = 20,
+        reroute_cooldown_s: float = 5.0,
+        distance_latency_base_s: float = 0.0,
+        distance_latency_max_s: float = 0.0,
+        distance_latency_norm_m: float = 500.0,
+    ):
         base_dir = Path(__file__).resolve().parent
         topo_path = Path(topology_path) if topology_path else (base_dir / "minimal_topology.json")
         if not topo_path.exists():
@@ -69,6 +85,22 @@ class MinimalFogSim:
         self.feedback_queue: Queue = Queue()
         self.pop = SUMOPopulation(self.app, self.external_queue)
 
+        self.rsu_registry = rsu_registry
+        self.task_manager = None
+        self.scheduler = None
+        self.control_policy = None
+        if self.rsu_registry is not None:
+            self.task_manager = TaskManager(task_deadline_s=task_deadline_s, compute_time_s=compute_time_s)
+            self.scheduler = Scheduler(
+                self.rsu_registry,
+                self.task_manager,
+                overload_threshold=overload_threshold,
+                distance_latency_base_s=distance_latency_base_s,
+                distance_latency_max_s=distance_latency_max_s,
+                distance_latency_norm_m=distance_latency_norm_m,
+            )
+            self.control_policy = ControlPolicy(reroute_cooldown_s=reroute_cooldown_s)
+
         selector = First_ShortestPath()
         placement = FogPlacement(
             name="FogPlacement",
@@ -93,6 +125,76 @@ class MinimalFogSim:
         while not self.feedback_queue.empty():
             out.append(self.feedback_queue.get())
         return out
+
+    def process_step(
+        self,
+        telemetry_batch: list[Telemetry],
+        step: int,
+    ) -> list[dict]:
+        if self.scheduler is None or self.task_manager is None or self.control_policy is None:
+            raise RuntimeError("MinimalFogSim was created without RSU-aware orchestration components")
+
+        queue_depths = self.task_manager.active_queue_depths()
+        records: list[dict] = []
+
+        # Keep telemetry ingress explicit so YAFS remains the transport/compute timeline.
+        for telemetry in telemetry_batch:
+            decision = self.scheduler.schedule(telemetry, queue_depths)
+            task = self.task_manager.get(telemetry.vehicle_id)
+            if task is None:
+                continue
+
+            packet = {
+                "id": telemetry.vehicle_id,
+                "position": telemetry.position,
+                "speed": telemetry.speed,
+                "time": telemetry.step,
+                "region_id": telemetry.observed_rsu,
+                "assigned_rsu": decision.execution_rsu,
+                "owner_rsu": decision.owner_rsu,
+                "task_id": task.task_id,
+                "deadline_step": task.deadline_step,
+                "scheduler_action": decision.action,
+                "scheduler_reason": decision.reason,
+            }
+            self.ingest(packet)
+            command = self.control_policy.build_command(telemetry, decision, task)
+            feedback = command.to_packet()
+            self.submit_feedback(feedback)
+            records.append({"decision": decision, "feedback": feedback})
+
+        self.tick()
+        feedbacks = self.drain_feedback()
+        feedback_by_vehicle = {str(fb.get("id", "")): fb for fb in feedbacks}
+
+        # Match legacy behavior: task completion advances once per outer SUMO step.
+        self.task_manager.tick_all(step_size_s=1.0)
+        current_queue_depths = self.task_manager.active_queue_depths()
+
+        out: list[dict] = []
+        for record in records:
+            decision = record["decision"]
+            fallback_feedback = record["feedback"]
+            feedback = feedback_by_vehicle.get(decision.vehicle_id, fallback_feedback)
+            out.append(
+                {
+                    "decision": decision,
+                    "feedback": feedback,
+                    "queue_depths": current_queue_depths,
+                    "step": step,
+                }
+            )
+        return out
+
+    def prune_missing(self, live_vehicle_ids: set[str]) -> None:
+        if self.task_manager is None:
+            return
+        self.task_manager.prune_missing(live_vehicle_ids)
+
+    def active_queue_depths(self) -> dict[str, int]:
+        if self.task_manager is None:
+            return {}
+        return self.task_manager.active_queue_depths()
 
     def tick(self) -> None:
         # Flush incoming telemetry into YAFS before advancing simulation time.

@@ -135,30 +135,26 @@ def run_sumo_with_fog(
     dashboard: bool = False,
     dashboard_rows: int = 20,
 ) -> None:
-    from modules.control_policy import ControlPolicy
     from modules.models import Telemetry
     from modules.rsu_registry import RSURegistry
     from modules.runtime_dashboard import RuntimeDashboard
-    from modules.scheduler import Scheduler
-    from modules.task_manager import TaskManager
     from yafs_core import MinimalFogSim
 
     traci = _load_traci()
     sumo_cfg = _resolve_path(sumo_cfg)
     rsu_config = _resolve_path(rsu_config)
 
-    fog = MinimalFogSim()
     registry = RSURegistry.from_json(rsu_config, capacity_default=rsu_capacity_default)
-    task_manager = TaskManager(task_deadline_s=task_deadline, compute_time_s=2.0)
-    scheduler = Scheduler(
-        registry,
-        task_manager,
+    fog = MinimalFogSim(
+        rsu_registry=registry,
+        task_deadline_s=task_deadline,
+        compute_time_s=2.0,
         overload_threshold=overload_queue_threshold,
+        reroute_cooldown_s=reroute_cooldown,
         distance_latency_base_s=distance_latency_base,
         distance_latency_max_s=distance_latency_max,
         distance_latency_norm_m=distance_latency_norm,
     )
-    control_policy = ControlPolicy(reroute_cooldown_s=reroute_cooldown)
     dash = RuntimeDashboard(enabled=dashboard, max_rows=dashboard_rows)
     dash.configure_rsus(registry.all_rsus())
 
@@ -177,8 +173,10 @@ def run_sumo_with_fog(
             dash.begin_step(step=step, steps_total=steps)
             traci.simulationStep()
             live_vehicle_ids = set(traci.vehicle.getIDList())
-            task_manager.prune_missing(live_vehicle_ids)
-            queue_depths = task_manager.active_queue_depths()
+            fog.prune_missing(live_vehicle_ids)
+
+            telemetry_batch: list[Telemetry] = []
+            telemetry_by_vehicle: dict[str, Telemetry] = {}
 
             # Capture telemetry, perform RSU scheduling, and enqueue fog feedback.
             for veh in live_vehicle_ids:
@@ -193,61 +191,42 @@ def run_sumo_with_fog(
                     step=step,
                     observed_rsu=nearest.rsu_id,
                 )
-                decision = scheduler.schedule(telemetry, queue_depths)
-                task = task_manager.get(veh)
-                if task is None:
-                    _set_vehicle_text_params(
-                        traci,
-                        vehicle_id=telemetry.vehicle_id,
-                        observed_rsu=decision.observed_rsu,
-                        execution_rsu=decision.execution_rsu,
-                        state="no_task",
-                        speed_mps=telemetry.speed,
-                        step=telemetry.step,
-                        task_id="",
-                    )
-                    continue
+                telemetry_batch.append(telemetry)
+                telemetry_by_vehicle[telemetry.vehicle_id] = telemetry
 
-                packet = {
-                    "id": telemetry.vehicle_id,
-                    "position": telemetry.position,
-                    "speed": telemetry.speed,
-                    "time": telemetry.step,
-                    "region_id": telemetry.observed_rsu,
-                    "assigned_rsu": decision.execution_rsu,
-                    "owner_rsu": decision.owner_rsu,
-                    "task_id": task.task_id,
-                    "deadline_step": task.deadline_step,
-                    "scheduler_action": decision.action,
-                    "scheduler_reason": decision.reason,
-                }
-                fog.ingest(packet)
+            step_records = fog.process_step(telemetry_batch=telemetry_batch, step=step)
+
+            for record in step_records:
+                decision = record["decision"]
+                command = record["feedback"]
+                telemetry = telemetry_by_vehicle.get(decision.vehicle_id)
+                if telemetry is None:
+                    continue
 
                 if decision.action != "keep_local":
                     dash.record_scheduler(
-                        vehicle_id=veh,
+                        vehicle_id=decision.vehicle_id,
                         action=decision.action,
                         reason=decision.reason,
                         src_rsu=decision.observed_rsu,
                         exec_rsu=decision.execution_rsu,
                     )
                     print(
-                        f"[SCHED] veh={veh} obs={decision.observed_rsu} owner={decision.owner_rsu} "
+                        f"[SCHED] veh={decision.vehicle_id} obs={decision.observed_rsu} owner={decision.owner_rsu} "
                         f"exec={decision.execution_rsu} action={decision.action} reason={decision.reason} "
                         f"eta={decision.estimated_finish_step} ddl={decision.deadline_step}",
                         flush=True,
                     )
 
-                command = control_policy.build_command(telemetry, decision, task)
                 _set_vehicle_text_params(
                     traci,
                     vehicle_id=telemetry.vehicle_id,
                     observed_rsu=decision.observed_rsu,
                     execution_rsu=decision.execution_rsu,
-                    state=command.action,
+                    state=str(command.get("action", "keep_speed")),
                     speed_mps=telemetry.speed,
                     step=telemetry.step,
-                    task_id=task.task_id,
+                    task_id=str(command.get("task_id", "")),
                 )
                 dash.update_vehicle(
                     vehicle_id=telemetry.vehicle_id,
@@ -255,18 +234,14 @@ def run_sumo_with_fog(
                     observed_rsu=decision.observed_rsu,
                     execution_rsu=decision.execution_rsu,
                     speed=telemetry.speed,
-                    action=command.action,
-                    reroute=command.reroute,
+                    action=str(command.get("action", "keep_speed")),
+                    reroute=bool(command.get("reroute", False)),
                 )
-                fog.submit_feedback(command.to_packet())
 
-            fog.tick()
-            feedbacks = fog.drain_feedback()
+            feedbacks = [record["feedback"] for record in step_records]
             _apply_feedback(traci, feedbacks, live_vehicle_ids, dashboard=dash)
 
-            # Advance task compute progress after scheduling all vehicles in this step.
-            task_manager.tick_all(step_size_s=1.0)
-            current_queue_depths = task_manager.active_queue_depths()
+            current_queue_depths = fog.active_queue_depths()
             dash.finish_step(live_vehicle_ids)
             dash.set_snapshot(
                 step=step + 1,
