@@ -85,6 +85,7 @@ class MinimalFogSim:
             "messages": 0,
             "per_rsu": {},
         }
+        self.rsu_registry = rsu_registry
         self._node_to_rsu_ids = self._build_node_to_rsu_ids()
 
         self.app = Application(name="vehicular_app")
@@ -104,7 +105,6 @@ class MinimalFogSim:
         )
         self.app.add_service_module("Sensor", "FogProcessor", msg)
 
-        self.rsu_registry = rsu_registry
         self.processor_nodes = self._resolve_processor_nodes()
 
         # External queues keep bridge data decoupled from the YAFS internals.
