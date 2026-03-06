@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import csv
 from pathlib import Path
 from queue import Queue
 from typing import Optional
@@ -52,6 +53,7 @@ class MinimalFogSim:
         distance_latency_base_s: float = 0.0,
         distance_latency_max_s: float = 0.0,
         distance_latency_norm_m: float = 500.0,
+        results_prefix: Optional[str] = None,
     ):
         base_dir = Path(__file__).resolve().parent
         topo_path = Path(topology_path) if topology_path else (base_dir / "minimal_topology.json")
@@ -62,6 +64,22 @@ class MinimalFogSim:
         self.topo = Topology()
         self.topo.load(topo_data)
         self.fog_node = 1
+
+        default_prefix = base_dir / "results" / "yafs_runtime"
+        self.results_prefix = Path(results_prefix) if results_prefix else default_prefix
+        self.results_prefix.parent.mkdir(parents=True, exist_ok=True)
+        self._events_csv = Path(f"{self.results_prefix}.csv")
+        self._links_csv = Path(f"{self.results_prefix}_link.csv")
+        self._event_cursor = 0
+        self._link_cursor = 0
+        self._last_metrics_snapshot = {
+            "events": 0,
+            "links": 0,
+            "avg_end_to_end_s": 0.0,
+            "avg_service_s": 0.0,
+            "avg_link_latency_s": 0.0,
+            "messages": 0,
+        }
 
         self.app = Application(name="vehicular_app")
         self.app.set_modules(
@@ -110,7 +128,7 @@ class MinimalFogSim:
             app=self.app,
         )
 
-        self.sim = Sim(self.topo)
+        self.sim = Sim(self.topo, default_results_path=str(self.results_prefix))
         self.sim.deploy_app(self.app, placement=placement, selector=selector)
 
     def ingest(self, packet: dict) -> None:
@@ -169,6 +187,7 @@ class MinimalFogSim:
         self.tick()
         feedbacks = self.drain_feedback()
         feedback_by_vehicle = {str(fb.get("id", "")): fb for fb in feedbacks}
+        self._last_metrics_snapshot = self._collect_metrics_snapshot()
 
         # Match legacy behavior: task completion advances once per outer SUMO step.
         self.task_manager.tick_all(step_size_s=1.0)
@@ -184,6 +203,7 @@ class MinimalFogSim:
                     "decision": decision,
                     "feedback": feedback,
                     "queue_depths": current_queue_depths,
+                    "metrics": self._last_metrics_snapshot,
                     "step": step,
                 }
             )
@@ -220,6 +240,9 @@ class MinimalFogSim:
             return {}
         return self.task_manager.active_queue_depths()
 
+    def last_metrics_snapshot(self) -> dict:
+        return dict(self._last_metrics_snapshot)
+
     def tick(self) -> None:
         # Flush incoming telemetry into YAFS before advancing simulation time.
         try:
@@ -236,3 +259,74 @@ class MinimalFogSim:
                 self.sim.run(self.sim.env.now + 0.001)
             except Exception:
                 pass
+
+    def _collect_metrics_snapshot(self) -> dict:
+        events = self._read_new_csv_rows(self._events_csv, is_event=True)
+        links = self._read_new_csv_rows(self._links_csv, is_event=False)
+
+        avg_end_to_end = 0.0
+        avg_service = 0.0
+        avg_link_latency = 0.0
+        message_count = 0
+
+        if events:
+            total_end_to_end = 0.0
+            total_service = 0.0
+            for row in events:
+                try:
+                    emit = float(row.get("time_emit", 0.0))
+                    reception = float(row.get("time_reception", 0.0))
+                    service = float(row.get("service", 0.0))
+                except Exception:
+                    continue
+                total_end_to_end += max(0.0, reception - emit)
+                total_service += max(0.0, service)
+                message_count += 1
+
+            if message_count > 0:
+                avg_end_to_end = total_end_to_end / message_count
+                avg_service = total_service / message_count
+
+        if links:
+            total_link_latency = 0.0
+            link_count = 0
+            for row in links:
+                try:
+                    latency = float(row.get("latency", 0.0))
+                except Exception:
+                    continue
+                total_link_latency += max(0.0, latency)
+                link_count += 1
+            if link_count > 0:
+                avg_link_latency = total_link_latency / link_count
+
+        return {
+            "events": len(events),
+            "links": len(links),
+            "avg_end_to_end_s": avg_end_to_end,
+            "avg_service_s": avg_service,
+            "avg_link_latency_s": avg_link_latency,
+            "messages": message_count,
+        }
+
+    def _read_new_csv_rows(self, csv_path: Path, is_event: bool) -> list[dict]:
+        if not csv_path.exists():
+            return []
+
+        # Flush latest YAFS writes before reading incremental traces.
+        try:
+            self.sim.metrics.flush()
+        except Exception:
+            pass
+
+        with csv_path.open("r", encoding="utf-8", newline="") as fh:
+            reader = list(csv.DictReader(fh))
+
+        if is_event:
+            start = min(self._event_cursor, len(reader))
+            self._event_cursor = len(reader)
+        else:
+            start = min(self._link_cursor, len(reader))
+            self._link_cursor = len(reader)
+
+        return reader[start:]

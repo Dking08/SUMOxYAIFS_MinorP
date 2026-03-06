@@ -241,6 +241,7 @@ def run_sumo_with_fog(
             _apply_feedback(traci, feedbacks, live_vehicle_ids, dashboard=dash)
 
             current_queue_depths = fog.active_queue_depths()
+            metrics = fog.last_metrics_snapshot()
             dash.finish_step(live_vehicle_ids)
             dash.set_snapshot(
                 step=step + 1,
@@ -249,6 +250,16 @@ def run_sumo_with_fog(
                 active_tasks=sum(current_queue_depths.values()),
                 queue_depths=current_queue_depths,
             )
+
+            # Periodic metrics log keeps run-time output concise while exposing YAFS-level timing.
+            if (step + 1) % 20 == 0 and metrics.get("messages", 0) > 0:
+                print(
+                    f"[YAFS] step={step + 1} events={metrics.get('events', 0)} links={metrics.get('links', 0)} "
+                    f"e2e={metrics.get('avg_end_to_end_s', 0.0):.4f}s "
+                    f"service={metrics.get('avg_service_s', 0.0):.4f}s "
+                    f"link={metrics.get('avg_link_latency_s', 0.0):.4f}s",
+                    flush=True,
+                )
             step += 1
 
             if step_delay > 0:
