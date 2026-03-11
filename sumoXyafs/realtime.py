@@ -130,35 +130,39 @@ def run_sumo_with_fog(
     distance_latency_base: float = 0.0,
     distance_latency_max: float = 0.0,
     distance_latency_norm: float = 500.0,
+    distance_error: float = 0.0,
+    adaptive_latency_eta: bool = False,
+    adaptive_latency_alpha: float = 0.25,
+    adaptive_latency_weight: float = 1.0,
     reroute_cooldown: float = 5.0,
     rsu_capacity_default: int = 20,
     dashboard: bool = False,
     dashboard_rows: int = 20,
 ) -> None:
-    from modules.control_policy import ControlPolicy
     from modules.models import Telemetry
     from modules.rsu_registry import RSURegistry
     from modules.runtime_dashboard import RuntimeDashboard
-    from modules.scheduler import Scheduler
-    from modules.task_manager import TaskManager
     from yafs_core import MinimalFogSim
 
     traci = _load_traci()
     sumo_cfg = _resolve_path(sumo_cfg)
     rsu_config = _resolve_path(rsu_config)
 
-    fog = MinimalFogSim()
     registry = RSURegistry.from_json(rsu_config, capacity_default=rsu_capacity_default)
-    task_manager = TaskManager(task_deadline_s=task_deadline, compute_time_s=2.0)
-    scheduler = Scheduler(
-        registry,
-        task_manager,
+    fog = MinimalFogSim(
+        rsu_registry=registry,
+        task_deadline_s=task_deadline,
+        compute_time_s=2.0,
         overload_threshold=overload_queue_threshold,
+        reroute_cooldown_s=reroute_cooldown,
         distance_latency_base_s=distance_latency_base,
         distance_latency_max_s=distance_latency_max,
         distance_latency_norm_m=distance_latency_norm,
+        distance_error=distance_error,
+        adaptive_latency_eta=adaptive_latency_eta,
+        adaptive_latency_alpha=adaptive_latency_alpha,
+        adaptive_latency_weight=adaptive_latency_weight,
     )
-    control_policy = ControlPolicy(reroute_cooldown_s=reroute_cooldown)
     dash = RuntimeDashboard(enabled=dashboard, max_rows=dashboard_rows)
     dash.configure_rsus(registry.all_rsus())
 
@@ -177,77 +181,59 @@ def run_sumo_with_fog(
             dash.begin_step(step=step, steps_total=steps)
             traci.simulationStep()
             live_vehicle_ids = set(traci.vehicle.getIDList())
-            task_manager.prune_missing(live_vehicle_ids)
-            queue_depths = task_manager.active_queue_depths()
+            fog.prune_missing(live_vehicle_ids)
+
+            telemetry_batch: list[Telemetry] = []
+            telemetry_by_vehicle: dict[str, Telemetry] = {}
 
             # Capture telemetry, perform RSU scheduling, and enqueue fog feedback.
             for veh in live_vehicle_ids:
                 position = traci.vehicle.getPosition(veh)
                 speed = float(traci.vehicle.getSpeed(veh))
-                nearest = registry.nearest_rsu(position)
 
                 telemetry = Telemetry(
                     vehicle_id=veh,
                     position=(float(position[0]), float(position[1])),
                     speed=speed,
                     step=step,
-                    observed_rsu=nearest.rsu_id,
+                    observed_rsu="",
                 )
-                decision = scheduler.schedule(telemetry, queue_depths)
-                task = task_manager.get(veh)
-                if task is None:
-                    _set_vehicle_text_params(
-                        traci,
-                        vehicle_id=telemetry.vehicle_id,
-                        observed_rsu=decision.observed_rsu,
-                        execution_rsu=decision.execution_rsu,
-                        state="no_task",
-                        speed_mps=telemetry.speed,
-                        step=telemetry.step,
-                        task_id="",
-                    )
-                    continue
+                telemetry_batch.append(telemetry)
+                telemetry_by_vehicle[telemetry.vehicle_id] = telemetry
 
-                packet = {
-                    "id": telemetry.vehicle_id,
-                    "position": telemetry.position,
-                    "speed": telemetry.speed,
-                    "time": telemetry.step,
-                    "region_id": telemetry.observed_rsu,
-                    "assigned_rsu": decision.execution_rsu,
-                    "owner_rsu": decision.owner_rsu,
-                    "task_id": task.task_id,
-                    "deadline_step": task.deadline_step,
-                    "scheduler_action": decision.action,
-                    "scheduler_reason": decision.reason,
-                }
-                fog.ingest(packet)
+            step_records = fog.process_step(telemetry_batch=telemetry_batch, step=step)
+
+            for record in step_records:
+                decision = record["decision"]
+                command = record["feedback"]
+                telemetry = telemetry_by_vehicle.get(decision.vehicle_id)
+                if telemetry is None:
+                    continue
 
                 if decision.action != "keep_local":
                     dash.record_scheduler(
-                        vehicle_id=veh,
+                        vehicle_id=decision.vehicle_id,
                         action=decision.action,
                         reason=decision.reason,
                         src_rsu=decision.observed_rsu,
                         exec_rsu=decision.execution_rsu,
                     )
                     print(
-                        f"[SCHED] veh={veh} obs={decision.observed_rsu} owner={decision.owner_rsu} "
+                        f"[SCHED] veh={decision.vehicle_id} obs={decision.observed_rsu} owner={decision.owner_rsu} "
                         f"exec={decision.execution_rsu} action={decision.action} reason={decision.reason} "
                         f"eta={decision.estimated_finish_step} ddl={decision.deadline_step}",
                         flush=True,
                     )
 
-                command = control_policy.build_command(telemetry, decision, task)
                 _set_vehicle_text_params(
                     traci,
                     vehicle_id=telemetry.vehicle_id,
                     observed_rsu=decision.observed_rsu,
                     execution_rsu=decision.execution_rsu,
-                    state=command.action,
+                    state=str(command.get("action", "keep_speed")),
                     speed_mps=telemetry.speed,
                     step=telemetry.step,
-                    task_id=task.task_id,
+                    task_id=str(command.get("task_id", "")),
                 )
                 dash.update_vehicle(
                     vehicle_id=telemetry.vehicle_id,
@@ -255,18 +241,15 @@ def run_sumo_with_fog(
                     observed_rsu=decision.observed_rsu,
                     execution_rsu=decision.execution_rsu,
                     speed=telemetry.speed,
-                    action=command.action,
-                    reroute=command.reroute,
+                    action=str(command.get("action", "keep_speed")),
+                    reroute=bool(command.get("reroute", False)),
                 )
-                fog.submit_feedback(command.to_packet())
 
-            fog.tick()
-            feedbacks = fog.drain_feedback()
+            feedbacks = [record["feedback"] for record in step_records]
             _apply_feedback(traci, feedbacks, live_vehicle_ids, dashboard=dash)
 
-            # Advance task compute progress after scheduling all vehicles in this step.
-            task_manager.tick_all(step_size_s=1.0)
-            current_queue_depths = task_manager.active_queue_depths()
+            current_queue_depths = fog.active_queue_depths()
+            metrics = fog.last_metrics_snapshot()
             dash.finish_step(live_vehicle_ids)
             dash.set_snapshot(
                 step=step + 1,
@@ -275,6 +258,30 @@ def run_sumo_with_fog(
                 active_tasks=sum(current_queue_depths.values()),
                 queue_depths=current_queue_depths,
             )
+
+            # Periodic metrics log keeps run-time output concise while exposing YAFS-level timing.
+            if (step + 1) % 20 == 0 and metrics.get("messages", 0) > 0:
+                print(
+                    f"[YAFS] step={step + 1} events={metrics.get('events', 0)} links={metrics.get('links', 0)} "
+                    f"e2e={metrics.get('avg_end_to_end_s', 0.0):.4f}s "
+                    f"service={metrics.get('avg_service_s', 0.0):.4f}s "
+                    f"link={metrics.get('avg_link_latency_s', 0.0):.4f}s",
+                    flush=True,
+                )
+                per_rsu = metrics.get("per_rsu", {})
+                if isinstance(per_rsu, dict) and per_rsu:
+                    top = sorted(
+                        per_rsu.items(),
+                        key=lambda item: item[1].get("messages", 0),
+                        reverse=True,
+                    )[:2]
+                    for rsu_id, rsu_stats in top:
+                        print(
+                            f"[YAFS-RSU] step={step + 1} rsu={rsu_id} messages={rsu_stats.get('messages', 0)} "
+                            f"e2e={rsu_stats.get('avg_end_to_end_s', 0.0):.4f}s "
+                            f"service={rsu_stats.get('avg_service_s', 0.0):.4f}s",
+                            flush=True,
+                        )
             step += 1
 
             if step_delay > 0:
@@ -301,6 +308,10 @@ def main() -> None:
     p.add_argument("--distance-latency-base", type=float, default=0.0, help="Base link latency (s) added to ETA")
     p.add_argument("--distance-latency-max", type=float, default=0.0, help="Latency term (s) at distance == --distance-latency-norm")
     p.add_argument("--distance-latency-norm", type=float, default=500.0, help="Distance (m) scale for uncapped linear latency growth")
+    p.add_argument("--distance-error", type=float, default=0.0, help="Relative distance latency error factor (distance_latency += distance_error * distance_latency)")
+    p.add_argument("--adaptive-latency-eta", action="store_true", help="Blend measured YAFS link latency into ETA model")
+    p.add_argument("--adaptive-latency-alpha", type=float, default=0.25, help="EWMA smoothing factor for measured link latency [0,1]")
+    p.add_argument("--adaptive-latency-weight", type=float, default=1.0, help="Multiplier for measured link latency contribution to ETA")
     p.add_argument("--reroute-cooldown", type=float, default=5.0, help="Minimum seconds between reroutes per vehicle")
     p.add_argument("--rsu-capacity-default", type=int, default=20, help="Default RSU capacity if missing in config")
     p.add_argument("--dashboard", action="store_true", help="Show a basic Tkinter runtime dashboard")
@@ -320,6 +331,10 @@ def main() -> None:
         distance_latency_base=args.distance_latency_base,
         distance_latency_max=args.distance_latency_max,
         distance_latency_norm=args.distance_latency_norm,
+        distance_error=args.distance_error,
+        adaptive_latency_eta=args.adaptive_latency_eta,
+        adaptive_latency_alpha=args.adaptive_latency_alpha,
+        adaptive_latency_weight=args.adaptive_latency_weight,
         reroute_cooldown=args.reroute_cooldown,
         rsu_capacity_default=args.rsu_capacity_default,
         dashboard=args.dashboard,

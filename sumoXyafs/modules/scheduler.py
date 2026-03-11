@@ -15,6 +15,10 @@ class Scheduler:
         distance_latency_base_s: float = 0.0,
         distance_latency_max_s: float = 0.0,
         distance_latency_norm_m: float = 500.0,
+        distance_error: float = 0.0,
+        adaptive_latency_eta: bool = False,
+        adaptive_latency_alpha: float = 0.25,
+        adaptive_latency_weight: float = 1.0,
     ):
         self.rsu_registry = rsu_registry
         self.task_manager = task_manager
@@ -22,6 +26,11 @@ class Scheduler:
         self.distance_latency_base_s = max(0.0, float(distance_latency_base_s))
         self.distance_latency_max_s = max(self.distance_latency_base_s, float(distance_latency_max_s))
         self.distance_latency_norm_m = max(1.0, float(distance_latency_norm_m))
+        self.distance_error = max(0.0, float(distance_error))
+        self.adaptive_latency_eta = bool(adaptive_latency_eta)
+        self.adaptive_latency_alpha = min(1.0, max(0.0, float(adaptive_latency_alpha)))
+        self.adaptive_latency_weight = max(0.0, float(adaptive_latency_weight))
+        self._measured_link_latency_s = 0.0
 
     def schedule(
         self,
@@ -36,7 +45,7 @@ class Scheduler:
         # Apply deadline-aware sticky handover when observed RSU changes.
         if telemetry.observed_rsu != state.owner_rsu:
             current_queue = queue_depths.get(state.execution_rsu, 0)
-            sticky_latency = self._distance_latency_s(telemetry.position, state.execution_rsu)
+            sticky_latency = self._network_latency_s(telemetry.position, state.execution_rsu)
             estimated_finish = self.task_manager.estimate_finish_step(
                 state,
                 current_queue,
@@ -70,7 +79,7 @@ class Scheduler:
                     reason = f"{reason}+offloaded"
 
         queue_depths[execution_rsu] = queue_depths.get(execution_rsu, 0) + 1
-        exec_latency = self._distance_latency_s(telemetry.position, execution_rsu)
+        exec_latency = self._network_latency_s(telemetry.position, execution_rsu)
         estimated_finish = self.task_manager.estimate_finish_step(
             state,
             queue_depths.get(execution_rsu, 0),
@@ -89,6 +98,17 @@ class Scheduler:
             deadline_step=state.deadline_step,
         )
 
+    def set_measured_link_latency(self, measured_latency_s: float) -> None:
+        measured = max(0.0, float(measured_latency_s))
+        alpha = self.adaptive_latency_alpha
+        self._measured_link_latency_s = ((1.0 - alpha) * self._measured_link_latency_s) + (alpha * measured)
+
+    def _network_latency_s(self, position: tuple[float, float], execution_rsu: str) -> float:
+        baseline = self._distance_latency_s(position, execution_rsu)
+        if not self.adaptive_latency_eta:
+            return baseline
+        return baseline + (self._measured_link_latency_s * self.adaptive_latency_weight)
+
     def _distance_latency_s(self, position: tuple[float, float], execution_rsu: str) -> float:
         if self.distance_latency_max_s <= 0.0:
             return 0.0
@@ -96,4 +116,5 @@ class Scheduler:
         # Use uncapped linear latency growth proportional to RSU distance.
         distance_m = self.rsu_registry.distance_to_rsu(position, execution_rsu)
         normalized = distance_m / self.distance_latency_norm_m
-        return self.distance_latency_base_s + (self.distance_latency_max_s - self.distance_latency_base_s) * normalized
+        distance_latency = self.distance_latency_base_s + (self.distance_latency_max_s - self.distance_latency_base_s) * normalized
+        return distance_latency + (self.distance_error * distance_latency)
