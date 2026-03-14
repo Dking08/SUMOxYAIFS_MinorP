@@ -1,6 +1,5 @@
 vsumof/
-sumo/delhi/fog_test.edgeData.xml
-sumo/delhi/fog_test.fcd.xml
-sumo/delhi/fog_test.laneData.xml
-sumo/delhi/fog_test.stats.xml
-sumo/delhi/fog_test.tripinfos.xml
+venv/
+**/__pycache__/
+*.pyc
+sumoXyafs/sumo/*
