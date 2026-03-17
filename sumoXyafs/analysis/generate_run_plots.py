@@ -40,6 +40,44 @@ def _save(fig, path: Path) -> Path:
     return path
 
 
+def _binned_stats(x_values: list[float], y_values: list[float], bins: int = 16) -> tuple[list[float], list[float], list[float], list[float]]:
+    if not x_values or not y_values:
+        return [], [], [], []
+
+    x_min = min(x_values)
+    x_max = max(x_values)
+    if x_max <= x_min:
+        mean_y = sum(y_values) / max(1, len(y_values))
+        return [x_min], [mean_y], [mean_y], [mean_y]
+
+    bin_width = (x_max - x_min) / max(1, bins)
+    buckets: dict[int, list[float]] = defaultdict(list)
+    for xv, yv in zip(x_values, y_values):
+        idx = int((xv - x_min) / bin_width) if bin_width > 0 else 0
+        idx = min(max(idx, 0), bins - 1)
+        buckets[idx].append(yv)
+
+    centers: list[float] = []
+    means: list[float] = []
+    lows: list[float] = []
+    highs: list[float] = []
+    for idx in sorted(buckets.keys()):
+        ys = sorted(buckets[idx])
+        n = len(ys)
+        if n == 0:
+            continue
+        center = x_min + ((idx + 0.5) * bin_width)
+        mean_val = sum(ys) / n
+        low = ys[max(0, int(0.25 * (n - 1)))]
+        high = ys[min(n - 1, int(0.75 * (n - 1)))]
+        centers.append(center)
+        means.append(mean_val)
+        lows.append(low)
+        highs.append(high)
+
+    return centers, means, lows, highs
+
+
 def _plot_vehicle_position_vs_time(telemetry_rows: list[dict[str, str]], plots_dir: Path) -> Path | None:
     if not telemetry_rows:
         return None
@@ -165,11 +203,22 @@ def _plot_latency_vs_load(step_rows: list[dict[str, str]], plots_dir: Path) -> P
         return None
 
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.scatter(load, latency, alpha=0.45, s=18, c="#ef476f")
+
+    hexbin = ax.hexbin(load, latency, gridsize=22, mincnt=1, cmap="magma", alpha=0.9)
+    fig.colorbar(hexbin, ax=ax, label="samples per bin")
+
+    centers, means, lows, highs = _binned_stats(load, latency, bins=14)
+    if centers:
+        ax.plot(centers, means, color="#00d4ff", linewidth=2.4, label="binned mean trend")
+        ax.fill_between(centers, lows, highs, color="#00d4ff", alpha=0.18, label="IQR band")
+
+    ax.scatter(load, latency, alpha=0.15, s=12, c="#ffffff", edgecolors="none")
     ax.set_title("Latency vs Load")
     ax.set_xlabel("total queue depth")
     ax.set_ylabel("avg end-to-end latency (s)")
     ax.grid(alpha=0.3)
+    if centers:
+        ax.legend(loc="upper left", fontsize=8)
     return _save(fig, plots_dir / "04_perf_latency_vs_load.png")
 
 
@@ -181,11 +230,22 @@ def _plot_throughput_vs_density(step_rows: list[dict[str, str]], plots_dir: Path
     throughput = [_f(r, "messages") for r in step_rows]
 
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.scatter(density, throughput, alpha=0.45, s=18, c="#2a9d8f")
+
+    hexbin = ax.hexbin(density, throughput, gridsize=22, mincnt=1, cmap="viridis", alpha=0.9)
+    fig.colorbar(hexbin, ax=ax, label="samples per bin")
+
+    centers, means, lows, highs = _binned_stats(density, throughput, bins=14)
+    if centers:
+        ax.plot(centers, means, color="#ffb703", linewidth=2.4, label="binned mean trend")
+        ax.fill_between(centers, lows, highs, color="#ffb703", alpha=0.18, label="IQR band")
+
+    ax.scatter(density, throughput, alpha=0.15, s=12, c="#ffffff", edgecolors="none")
     ax.set_title("Throughput vs Density")
     ax.set_xlabel("vehicle count per step")
     ax.set_ylabel("messages processed per step")
     ax.grid(alpha=0.3)
+    if centers:
+        ax.legend(loc="upper left", fontsize=8)
     return _save(fig, plots_dir / "05_perf_throughput_vs_density.png")
 
 

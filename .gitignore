@@ -3,3 +3,5 @@ venv/
 **/__pycache__/
 *.pyc
 sumoXyafs/sumo/*
+sumoXyafs/sumo/**/*.xml
+sumoXyafs/sumo/**/*.xml.gz

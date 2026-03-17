@@ -1,0 +1,12 @@
+{
+  "sumo_cfg": "sumo/delhi/osm.sumocfg",
+  "rsu_config": "/home/pegion/drived/Space/sumo_YAFS_mProject/sumoXyafs/rsu_config.json",
+  "steps": 500,
+  "port": 8873,
+  "start_sumo": true,
+  "gui": true,
+  "run_dir": "/home/pegion/drived/Space/sumo_YAFS_mProject/sumoXyafs/results/exp_baseline_02",
+  "raw_dir": "/home/pegion/drived/Space/sumo_YAFS_mProject/sumoXyafs/results/exp_baseline_02/raw",
+  "analysis_dir": "/home/pegion/drived/Space/sumo_YAFS_mProject/sumoXyafs/results/exp_baseline_02/analysis",
+  "generated_at": "2026-03-17T20:39:59"
+}
