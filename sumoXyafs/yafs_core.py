@@ -83,6 +83,8 @@ class MinimalFogSim:
             "avg_service_s": 0.0,
             "avg_link_latency_s": 0.0,
             "messages": 0,
+            "completed_tasks": 0,
+            "active_tasks": 0,
             "per_rsu": {},
         }
         self.rsu_registry = rsu_registry
@@ -202,8 +204,10 @@ class MinimalFogSim:
             self.scheduler.set_measured_link_latency(self._last_metrics_snapshot.get("avg_link_latency_s", 0.0))
 
         # Match legacy behavior: task completion advances once per outer SUMO step.
-        self.task_manager.tick_all(step_size_s=1.0)
+        completed = self.task_manager.tick_all(step_size_s=1.0)
         current_queue_depths = self.task_manager.active_queue_depths()
+        self._last_metrics_snapshot["completed_tasks"] = len(completed)
+        self._last_metrics_snapshot["active_tasks"] = sum(current_queue_depths.values())
 
         out: list[dict] = []
         for record in records:

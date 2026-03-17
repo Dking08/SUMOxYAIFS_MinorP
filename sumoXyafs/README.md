@@ -17,6 +17,14 @@ Auto-plot generation is enabled by default and currently produces feasible graph
 - `05_perf_throughput_vs_density.png`
 - `06_perf_utilization_vs_allocation.png`
 
+For plots `03/04/05`, the pipeline now auto-falls back when YAFS runtime traces are empty/zero:
+- `03`: uses scheduler-estimated network latency vs distance
+- `04`: uses estimated latency vs load
+- `05`: uses completed tasks vs density
+
+When fallback mode is used, a note is rendered directly inside the figure.
+To get full YAFS communication-performance conclusions (non-fallback), tune run conditions so YAFS emits event/link rows (e.g., non-trivial topology load, longer runs, and message flow that results in measurable transport/service timeline events).
+
 Disable auto-plot generation when needed:
 ```python realtime.py --start-sumo --gui --sumo-cfg sumo/delhi/osm.sumocfg --no-plots```
 

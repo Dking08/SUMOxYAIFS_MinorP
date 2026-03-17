@@ -283,6 +283,8 @@ def run_sumo_with_fog(
                         "reason": decision.reason,
                         "estimated_finish_step": decision.estimated_finish_step,
                         "deadline_step": decision.deadline_step,
+                        "estimated_network_latency_s": decision.estimated_network_latency_s,
+                        "estimated_deadline_slack_steps": decision.deadline_step - decision.estimated_finish_step,
                         "distance_to_exec_rsu_m": distance_to_exec,
                         "reroute": bool(command.get("reroute", False)),
                         "command_action": str(command.get("action", "keep_speed")),
@@ -330,6 +332,15 @@ def run_sumo_with_fog(
             current_queue_depths = fog.active_queue_depths()
             metrics = fog.last_metrics_snapshot()
             action_counter = Counter(record["decision"].action for record in step_records)
+            avg_estimated_network_latency = 0.0
+            avg_estimated_deadline_slack = 0.0
+            if step_records:
+                avg_estimated_network_latency = sum(
+                    float(record["decision"].estimated_network_latency_s) for record in step_records
+                ) / len(step_records)
+                avg_estimated_deadline_slack = sum(
+                    float(record["decision"].deadline_step - record["decision"].estimated_finish_step) for record in step_records
+                ) / len(step_records)
 
             step_rows.append(
                 {
@@ -343,6 +354,9 @@ def run_sumo_with_fog(
                     "avg_end_to_end_s": metrics.get("avg_end_to_end_s", 0.0),
                     "avg_service_s": metrics.get("avg_service_s", 0.0),
                     "avg_link_latency_s": metrics.get("avg_link_latency_s", 0.0),
+                    "completed_tasks": metrics.get("completed_tasks", 0),
+                    "avg_estimated_network_latency_s": avg_estimated_network_latency,
+                    "avg_estimated_deadline_slack_steps": avg_estimated_deadline_slack,
                     "keep_local_count": action_counter.get("keep_local", 0),
                     "sticky_count": action_counter.get("sticky", 0),
                     "migrate_count": action_counter.get("migrate", 0),
@@ -429,6 +443,8 @@ def run_sumo_with_fog(
                 "reason",
                 "estimated_finish_step",
                 "deadline_step",
+                "estimated_network_latency_s",
+                "estimated_deadline_slack_steps",
                 "distance_to_exec_rsu_m",
                 "reroute",
                 "command_action",
@@ -448,6 +464,9 @@ def run_sumo_with_fog(
                 "avg_end_to_end_s",
                 "avg_service_s",
                 "avg_link_latency_s",
+                "completed_tasks",
+                "avg_estimated_network_latency_s",
+                "avg_estimated_deadline_slack_steps",
                 "keep_local_count",
                 "sticky_count",
                 "migrate_count",
