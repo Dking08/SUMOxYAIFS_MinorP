@@ -2,7 +2,11 @@
 from __future__ import annotations
 
 import argparse
+import csv
+import json
 import time
+from collections import Counter
+from datetime import datetime
 from pathlib import Path
 
 
@@ -24,6 +28,39 @@ def _resolve_path(path_str: str) -> str:
             return str(stripped)
 
     return str(path)
+
+
+def _write_csv(path: Path, rows: list[dict], fieldnames: list[str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({key: row.get(key, "") for key in fieldnames})
+
+
+def _prepare_run_dirs(results_root: str, run_name: str = "") -> tuple[Path, Path, Path]:
+    base = Path(results_root)
+    if not base.is_absolute():
+        base = Path(__file__).resolve().parent / base
+    base.mkdir(parents=True, exist_ok=True)
+
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    label = run_name.strip() if run_name.strip() else f"run_{stamp}"
+
+    run_dir = base / label
+    suffix = 1
+    while run_dir.exists():
+        run_dir = base / f"{label}_{suffix:02d}"
+        suffix += 1
+
+    raw_dir = run_dir / "raw"
+    analysis_dir = run_dir / "analysis"
+    plots_dir = run_dir / "plots"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    analysis_dir.mkdir(parents=True, exist_ok=True)
+    plots_dir.mkdir(parents=True, exist_ok=True)
+    return run_dir, raw_dir, analysis_dir
 
 
 def _load_traci():
@@ -138,15 +175,21 @@ def run_sumo_with_fog(
     rsu_capacity_default: int = 20,
     dashboard: bool = False,
     dashboard_rows: int = 20,
+    results_root: str = "results",
+    run_name: str = "",
+    generate_plots: bool = True,
 ) -> None:
     from modules.models import Telemetry
     from modules.rsu_registry import RSURegistry
     from modules.runtime_dashboard import RuntimeDashboard
+    from analysis.generate_run_plots import generate_plots_for_run
     from yafs_core import MinimalFogSim
 
     traci = _load_traci()
     sumo_cfg = _resolve_path(sumo_cfg)
     rsu_config = _resolve_path(rsu_config)
+    run_dir, raw_dir, analysis_dir = _prepare_run_dirs(results_root=results_root, run_name=run_name)
+    print(f"[RUN] Results directory: {run_dir}", flush=True)
 
     registry = RSURegistry.from_json(rsu_config, capacity_default=rsu_capacity_default)
     fog = MinimalFogSim(
@@ -162,6 +205,7 @@ def run_sumo_with_fog(
         adaptive_latency_eta=adaptive_latency_eta,
         adaptive_latency_alpha=adaptive_latency_alpha,
         adaptive_latency_weight=adaptive_latency_weight,
+        results_prefix=str(raw_dir / "yafs_runtime"),
     )
     dash = RuntimeDashboard(enabled=dashboard, max_rows=dashboard_rows)
     dash.configure_rsus(registry.all_rsus())
@@ -174,6 +218,11 @@ def run_sumo_with_fog(
         traci.init(port=port, numRetries=10, host="127.0.0.1")
 
     _draw_rsu_pois(traci, registry.all_rsus())
+
+    telemetry_rows: list[dict] = []
+    decision_rows: list[dict] = []
+    step_rows: list[dict] = []
+    rsu_rows: list[dict] = []
 
     try:
         step = 0
@@ -209,6 +258,36 @@ def run_sumo_with_fog(
                 telemetry = telemetry_by_vehicle.get(decision.vehicle_id)
                 if telemetry is None:
                     continue
+
+                distance_to_exec = registry.distance_to_rsu(telemetry.position, decision.execution_rsu)
+                telemetry_rows.append(
+                    {
+                        "step": step,
+                        "vehicle_id": telemetry.vehicle_id,
+                        "position_x": telemetry.position[0],
+                        "position_y": telemetry.position[1],
+                        "speed_mps": telemetry.speed,
+                        "observed_rsu": decision.observed_rsu,
+                        "execution_rsu": decision.execution_rsu,
+                        "action": decision.action,
+                    }
+                )
+                decision_rows.append(
+                    {
+                        "step": step,
+                        "vehicle_id": decision.vehicle_id,
+                        "observed_rsu": decision.observed_rsu,
+                        "owner_rsu": decision.owner_rsu,
+                        "execution_rsu": decision.execution_rsu,
+                        "action": decision.action,
+                        "reason": decision.reason,
+                        "estimated_finish_step": decision.estimated_finish_step,
+                        "deadline_step": decision.deadline_step,
+                        "distance_to_exec_rsu_m": distance_to_exec,
+                        "reroute": bool(command.get("reroute", False)),
+                        "command_action": str(command.get("action", "keep_speed")),
+                    }
+                )
 
                 if decision.action != "keep_local":
                     dash.record_scheduler(
@@ -250,6 +329,42 @@ def run_sumo_with_fog(
 
             current_queue_depths = fog.active_queue_depths()
             metrics = fog.last_metrics_snapshot()
+            action_counter = Counter(record["decision"].action for record in step_records)
+
+            step_rows.append(
+                {
+                    "step": step,
+                    "vehicle_count": len(live_vehicle_ids),
+                    "active_tasks": sum(current_queue_depths.values()),
+                    "total_queue_depth": sum(current_queue_depths.values()),
+                    "events": metrics.get("events", 0),
+                    "links": metrics.get("links", 0),
+                    "messages": metrics.get("messages", 0),
+                    "avg_end_to_end_s": metrics.get("avg_end_to_end_s", 0.0),
+                    "avg_service_s": metrics.get("avg_service_s", 0.0),
+                    "avg_link_latency_s": metrics.get("avg_link_latency_s", 0.0),
+                    "keep_local_count": action_counter.get("keep_local", 0),
+                    "sticky_count": action_counter.get("sticky", 0),
+                    "migrate_count": action_counter.get("migrate", 0),
+                    "offload_count": action_counter.get("offload", 0),
+                }
+            )
+
+            assigned_counter = Counter(record["decision"].execution_rsu for record in step_records)
+            for rsu in registry.all_rsus():
+                queue_depth = current_queue_depths.get(rsu.rsu_id, 0)
+                capacity = max(1, int(rsu.capacity))
+                rsu_rows.append(
+                    {
+                        "step": step,
+                        "rsu_id": rsu.rsu_id,
+                        "queue_depth": queue_depth,
+                        "capacity": capacity,
+                        "utilization": queue_depth / capacity,
+                        "assigned_count": assigned_counter.get(rsu.rsu_id, 0),
+                    }
+                )
+
             dash.finish_step(live_vehicle_ids)
             dash.set_snapshot(
                 step=step + 1,
@@ -286,6 +401,92 @@ def run_sumo_with_fog(
 
             if step_delay > 0:
                 time.sleep(step_delay)
+
+        _write_csv(
+            analysis_dir / "telemetry.csv",
+            telemetry_rows,
+            [
+                "step",
+                "vehicle_id",
+                "position_x",
+                "position_y",
+                "speed_mps",
+                "observed_rsu",
+                "execution_rsu",
+                "action",
+            ],
+        )
+        _write_csv(
+            analysis_dir / "decisions.csv",
+            decision_rows,
+            [
+                "step",
+                "vehicle_id",
+                "observed_rsu",
+                "owner_rsu",
+                "execution_rsu",
+                "action",
+                "reason",
+                "estimated_finish_step",
+                "deadline_step",
+                "distance_to_exec_rsu_m",
+                "reroute",
+                "command_action",
+            ],
+        )
+        _write_csv(
+            analysis_dir / "step_metrics.csv",
+            step_rows,
+            [
+                "step",
+                "vehicle_count",
+                "active_tasks",
+                "total_queue_depth",
+                "events",
+                "links",
+                "messages",
+                "avg_end_to_end_s",
+                "avg_service_s",
+                "avg_link_latency_s",
+                "keep_local_count",
+                "sticky_count",
+                "migrate_count",
+                "offload_count",
+            ],
+        )
+        _write_csv(
+            analysis_dir / "rsu_step_metrics.csv",
+            rsu_rows,
+            [
+                "step",
+                "rsu_id",
+                "queue_depth",
+                "capacity",
+                "utilization",
+                "assigned_count",
+            ],
+        )
+
+        metadata = {
+            "sumo_cfg": sumo_cfg,
+            "rsu_config": rsu_config,
+            "steps": steps,
+            "port": port,
+            "start_sumo": start_sumo,
+            "gui": use_gui,
+            "run_dir": str(run_dir),
+            "raw_dir": str(raw_dir),
+            "analysis_dir": str(analysis_dir),
+            "generated_at": datetime.now().isoformat(timespec="seconds"),
+        }
+        (run_dir / "run_metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+
+        if generate_plots:
+            outputs = generate_plots_for_run(run_dir)
+            if outputs:
+                print(f"[PLOT] Generated {len(outputs)} plots under {run_dir / 'plots'}", flush=True)
+            else:
+                print("[PLOT] No plots generated from current run data.", flush=True)
     finally:
         dash.close()
         try:
@@ -316,6 +517,9 @@ def main() -> None:
     p.add_argument("--rsu-capacity-default", type=int, default=20, help="Default RSU capacity if missing in config")
     p.add_argument("--dashboard", action="store_true", help="Show a basic Tkinter runtime dashboard")
     p.add_argument("--dashboard-rows", type=int, default=20, help="Max rows shown in dashboard event lists")
+    p.add_argument("--results-root", default="results", help="Results root directory (default: sumoXyafs/results)")
+    p.add_argument("--run-name", default="", help="Optional run folder name inside results root")
+    p.add_argument("--no-plots", action="store_true", help="Disable auto-generation of analysis plots")
     args = p.parse_args()
 
     run_sumo_with_fog(
@@ -339,6 +543,9 @@ def main() -> None:
         rsu_capacity_default=args.rsu_capacity_default,
         dashboard=args.dashboard,
         dashboard_rows=args.dashboard_rows,
+        results_root=args.results_root,
+        run_name=args.run_name,
+        generate_plots=not args.no_plots,
     )
 
 
