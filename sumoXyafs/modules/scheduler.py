@@ -96,6 +96,7 @@ class Scheduler:
             reason=reason,
             estimated_finish_step=estimated_finish,
             deadline_step=state.deadline_step,
+            estimated_network_latency_s=exec_latency,
         )
 
     def set_measured_link_latency(self, measured_latency_s: float) -> None:

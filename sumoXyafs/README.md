@@ -1,6 +1,36 @@
 To run:
 ```python realtime.py --start-sumo --gui --sumo-cfg sumo/delhi/osm.sumocfg --steps 500 --step-delay 0.5 --rsu-config rsu_config.json```
 
+Each run now writes artifacts to a dedicated timestamped folder under `sumoXyafs/results/`:
+- `results/run_YYYYmmdd_HHMMSS/raw/` -> YAFS runtime traces (`yafs_runtime.csv`, `yafs_runtime_link.csv`)
+- `results/run_YYYYmmdd_HHMMSS/analysis/` -> step/decision/telemetry CSVs for analysis
+- `results/run_YYYYmmdd_HHMMSS/plots/` -> generated figures (named with numeric prefixes)
+
+You can provide a custom run folder name:
+```python realtime.py --start-sumo --gui --sumo-cfg sumo/delhi/osm.sumocfg --run-name exp_baseline```
+
+Auto-plot generation is enabled by default and currently produces feasible graphs:
+- `01_mobility_vehicle_position_vs_time.png`
+- `02_mobility_speed_density_vs_region.png`
+- `03_network_v2i_distance_vs_link_latency.png`
+- `04_perf_latency_vs_load.png`
+- `05_perf_throughput_vs_density.png`
+- `06_perf_utilization_vs_allocation.png`
+
+For plots `03/04/05`, the pipeline now auto-falls back when YAFS runtime traces are empty/zero:
+- `03`: uses scheduler-estimated network latency vs distance
+- `04`: uses estimated latency vs load
+- `05`: uses completed tasks vs density
+
+When fallback mode is used, a note is rendered directly inside the figure.
+To get full YAFS communication-performance conclusions (non-fallback), tune run conditions so YAFS emits event/link rows (e.g., non-trivial topology load, longer runs, and message flow that results in measurable transport/service timeline events).
+
+Disable auto-plot generation when needed:
+```python realtime.py --start-sumo --gui --sumo-cfg sumo/delhi/osm.sumocfg --no-plots```
+
+Regenerate plots for an existing run directory:
+```python -m analysis.generate_run_plots --run-dir results/run_YYYYmmdd_HHMMSS```
+
 If sumo is running,
 ```sumo -c sumo/delhi/osm.sumocfg --remote-port 8873 --start```
 ```python realtime.py --port 8873 --steps 500 --rsu-config rsu_config.json```

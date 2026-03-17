@@ -52,6 +52,7 @@ class SchedulingDecision:
     reason: str
     estimated_finish_step: int
     deadline_step: int
+    estimated_network_latency_s: float = 0.0
 
 
 @dataclass
