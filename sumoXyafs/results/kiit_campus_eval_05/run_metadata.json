@@ -1,0 +1,12 @@
+{
+  "sumo_cfg": "sumo\\kiit_campus\\kiit_campus.sumocfg",
+  "rsu_config": "sumo\\kiit_campus\\rsu_config_kiit.json",
+  "steps": 300,
+  "port": 8873,
+  "start_sumo": true,
+  "gui": true,
+  "run_dir": "D:\\6th Sem\\mProject\\FOG_YAFS\\sumo_YAFS_mProject\\sumoXyafs\\results\\kiit_campus_eval_05",
+  "raw_dir": "D:\\6th Sem\\mProject\\FOG_YAFS\\sumo_YAFS_mProject\\sumoXyafs\\results\\kiit_campus_eval_05\\raw",
+  "analysis_dir": "D:\\6th Sem\\mProject\\FOG_YAFS\\sumo_YAFS_mProject\\sumoXyafs\\results\\kiit_campus_eval_05\\analysis",
+  "generated_at": "2026-10-13T15:03:18"
+}

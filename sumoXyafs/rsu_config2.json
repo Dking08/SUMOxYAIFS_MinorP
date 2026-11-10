@@ -1,0 +1,40 @@
+{
+  "defaults": {
+    "capacity": 20
+  },
+  "rsus": [
+    {
+      "id": "rsu_1",
+      "node_id": 1,
+      "x": 28.42,
+      "y": 3427.97,
+      "capacity": 20,
+      "neighbors": [
+        "rsu_3",
+        "rsu_2"
+      ]
+    },
+    {
+      "id": "rsu_2",
+      "node_id": 2,
+      "x": 1458.25,
+      "y": 9472.1,
+      "capacity": 20,
+      "neighbors": [
+        "rsu_1",
+        "rsu_3"
+      ]
+    },
+    {
+      "id": "rsu_3",
+      "node_id": 3,
+      "x": 2737.79,
+      "y": 0.57,
+      "capacity": 20,
+      "neighbors": [
+        "rsu_1",
+        "rsu_2"
+      ]
+    }
+  ]
+}

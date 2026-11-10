@@ -1,0 +1,1 @@
+{"proactive_distance_m": 600.0, "min_transition_prob": 0.25, "counts": {"rsu_4": {"rsu_5": 1.0}, "rsu_5": {"rsu_2": 1.0}, "rsu_2": {"rsu_3": 1.0}}}

@@ -1,0 +1,16 @@
+step,vehicle_id,position_x,position_y,speed_mps,observed_rsu,execution_rsu,action
+0,kiit_veh0,2026.9001193860147,2320.71,0.0,rsu_1,rsu_1,keep_local
+1,kiit_veh0,2026.9001193860147,2320.71,0.0,rsu_1,rsu_1,keep_local
+2,kiit_veh0,2026.9001193860147,2320.71,0.0,rsu_1,rsu_1,keep_local
+3,kiit_veh0,2026.9001193860147,2320.71,0.0,rsu_1,rsu_1,keep_local
+4,kiit_veh0,2026.9001193860147,2320.71,0.0,rsu_1,rsu_1,keep_local
+5,kiit_veh0,2026.9001193860147,2320.71,0.0,rsu_1,rsu_1,keep_local
+6,kiit_veh0,2026.9001193860147,2320.71,0.0,rsu_1,rsu_1,keep_local
+7,kiit_veh0,2026.9001193860147,2320.71,0.0,rsu_1,rsu_1,keep_local
+8,kiit_veh0,2026.9001193860147,2320.71,0.0,rsu_1,rsu_1,keep_local
+9,kiit_veh0,2026.9001193860147,2320.71,0.0,rsu_1,rsu_1,keep_local
+10,kiit_veh0,2026.9001193860147,2320.71,0.0,rsu_1,rsu_1,keep_local
+11,kiit_veh0,2026.9001193860147,2320.71,0.0,rsu_1,rsu_1,keep_local
+12,kiit_veh0,2026.9001193860147,2320.71,0.0,rsu_1,rsu_1,keep_local
+13,kiit_veh0,2026.9001193860147,2320.71,0.0,rsu_1,rsu_1,keep_local
+14,kiit_veh0,2026.9001193860147,2320.71,0.0,rsu_1,rsu_1,keep_local

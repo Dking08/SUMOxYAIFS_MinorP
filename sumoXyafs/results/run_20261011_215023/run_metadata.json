@@ -1,0 +1,12 @@
+{
+  "sumo_cfg": "sumoXyafs\\sumo\\lust\\lust.sumocfg",
+  "rsu_config": "sumoXyafs\\sumo\\lust\\rsu_config_lust.json",
+  "steps": 300,
+  "port": 8873,
+  "start_sumo": true,
+  "gui": true,
+  "run_dir": "D:\\6th Sem\\mProject\\FOG_YAFS\\sumo_YAFS_mProject\\sumoXyafs\\results\\run_20261011_215023",
+  "raw_dir": "D:\\6th Sem\\mProject\\FOG_YAFS\\sumo_YAFS_mProject\\sumoXyafs\\results\\run_20261011_215023\\raw",
+  "analysis_dir": "D:\\6th Sem\\mProject\\FOG_YAFS\\sumo_YAFS_mProject\\sumoXyafs\\results\\run_20261011_215023\\analysis",
+  "generated_at": "2026-10-11T21:50:40"
+}

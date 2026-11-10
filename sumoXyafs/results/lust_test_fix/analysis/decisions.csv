@@ -1,0 +1,16 @@
+step,vehicle_id,observed_rsu,owner_rsu,execution_rsu,action,reason,estimated_finish_step,deadline_step,estimated_network_latency_s,estimated_deadline_slack_steps,distance_to_exec_rsu_m,reroute,command_action
+0,randUni18368:1,rsu_1,rsu_1,rsu_1,keep_local,same_region,3,2,0.0,-1,1235.0330712315224,False,keep_speed
+1,randUni18368:1,rsu_1,rsu_1,rsu_1,keep_local,same_region,4,2,0.0,-2,1235.0330712315224,False,keep_speed
+2,randUni18368:1,rsu_1,rsu_1,rsu_1,keep_local,same_region,5,4,0.0,-1,1235.0330712315224,False,keep_speed
+3,randUni18368:1,rsu_1,rsu_1,rsu_1,keep_local,same_region,6,4,0.0,-2,1235.0330712315224,False,keep_speed
+4,randUni18368:1,rsu_1,rsu_1,rsu_1,keep_local,same_region,7,6,0.0,-1,1235.0330712315224,False,keep_speed
+5,randUni18368:1,rsu_1,rsu_1,rsu_1,keep_local,same_region,8,6,0.0,-2,1235.0330712315224,False,keep_speed
+5,randUni834:1,rsu_1,rsu_1,rsu_1,keep_local,same_region,10,7,0.0,-3,1827.2117929907663,False,keep_speed
+6,randUni18368:1,rsu_1,rsu_1,rsu_1,keep_local,same_region,10,8,0.0,-2,1235.0330712315224,False,keep_speed
+6,randUni834:1,rsu_1,rsu_1,rsu_1,keep_local,same_region,10,7,0.0,-3,1827.2117929907663,False,keep_speed
+7,randUni18368:1,rsu_1,rsu_1,rsu_1,keep_local,same_region,10,8,0.0,-2,1235.0330712315224,False,keep_speed
+7,randUni834:1,rsu_1,rsu_1,rsu_1,keep_local,same_region,12,9,0.0,-3,1827.2117929907663,False,keep_speed
+8,randUni18368:1,rsu_1,rsu_1,rsu_1,keep_local,same_region,12,10,0.0,-2,1235.0330712315224,False,keep_speed
+8,randUni834:1,rsu_1,rsu_1,rsu_1,keep_local,same_region,12,9,0.0,-3,1827.2117929907663,False,keep_speed
+9,randUni18368:1,rsu_1,rsu_1,rsu_1,keep_local,same_region,12,10,0.0,-2,1235.0330712315224,False,keep_speed
+9,randUni834:1,rsu_1,rsu_1,rsu_1,keep_local,same_region,14,11,0.0,-3,1827.2117929907663,False,keep_speed

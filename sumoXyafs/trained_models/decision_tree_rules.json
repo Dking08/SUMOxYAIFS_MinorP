@@ -1,0 +1,1 @@
+{"rules": {"queue_thresh": 0.05, "dist_thresh": 0.75, "slack_thresh": -0.2}, "max_depth": 4}

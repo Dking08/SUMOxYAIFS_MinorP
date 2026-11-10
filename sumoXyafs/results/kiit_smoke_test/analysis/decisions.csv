@@ -1,0 +1,16 @@
+step,vehicle_id,observed_rsu,owner_rsu,execution_rsu,action,reason,estimated_finish_step,deadline_step,estimated_network_latency_s,estimated_deadline_slack_steps,distance_to_exec_rsu_m,reroute,command_action
+0,kiit_veh0,rsu_1,rsu_1,rsu_1,keep_local,same_region,3,2,0.0,-1,1097.457491705577,False,keep_speed
+1,kiit_veh0,rsu_1,rsu_1,rsu_1,keep_local,same_region,4,2,0.0,-2,1097.457491705577,False,keep_speed
+2,kiit_veh0,rsu_1,rsu_1,rsu_1,keep_local,same_region,5,4,0.0,-1,1097.457491705577,False,keep_speed
+3,kiit_veh0,rsu_1,rsu_1,rsu_1,keep_local,same_region,6,4,0.0,-2,1097.457491705577,False,keep_speed
+4,kiit_veh0,rsu_1,rsu_1,rsu_1,keep_local,same_region,7,6,0.0,-1,1097.457491705577,False,keep_speed
+5,kiit_veh0,rsu_1,rsu_1,rsu_1,keep_local,same_region,8,6,0.0,-2,1097.457491705577,False,keep_speed
+6,kiit_veh0,rsu_1,rsu_1,rsu_1,keep_local,same_region,9,8,0.0,-1,1097.457491705577,False,keep_speed
+7,kiit_veh0,rsu_1,rsu_1,rsu_1,keep_local,same_region,10,8,0.0,-2,1097.457491705577,False,keep_speed
+8,kiit_veh0,rsu_1,rsu_1,rsu_1,keep_local,same_region,11,10,0.0,-1,1097.457491705577,False,keep_speed
+9,kiit_veh0,rsu_1,rsu_1,rsu_1,keep_local,same_region,12,10,0.0,-2,1097.457491705577,False,keep_speed
+10,kiit_veh0,rsu_1,rsu_1,rsu_1,keep_local,same_region,13,12,0.0,-1,1097.457491705577,False,keep_speed
+11,kiit_veh0,rsu_1,rsu_1,rsu_1,keep_local,same_region,14,12,0.0,-2,1097.457491705577,False,keep_speed
+12,kiit_veh0,rsu_1,rsu_1,rsu_1,keep_local,same_region,15,14,0.0,-1,1097.457491705577,False,keep_speed
+13,kiit_veh0,rsu_1,rsu_1,rsu_1,keep_local,same_region,16,14,0.0,-2,1097.457491705577,False,keep_speed
+14,kiit_veh0,rsu_1,rsu_1,rsu_1,keep_local,same_region,17,16,0.0,-1,1097.457491705577,False,keep_speed

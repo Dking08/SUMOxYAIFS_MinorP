@@ -1,0 +1,11 @@
+step,vehicle_count,active_tasks,total_queue_depth,events,links,messages,avg_end_to_end_s,avg_service_s,avg_link_latency_s,completed_tasks,avg_estimated_network_latency_s,avg_estimated_deadline_slack_steps,keep_local_count,sticky_count,migrate_count,offload_count
+0,1,1,1,0,0,0,0.0,0.0,0.0,0,0.0,-1.0,1,0,0,0
+1,1,0,0,0,0,0,0.0,0.0,0.0,1,0.0,-2.0,1,0,0,0
+2,1,1,1,0,0,0,0.0,0.0,0.0,0,0.0,-1.0,1,0,0,0
+3,1,0,0,0,0,0,0.0,0.0,0.0,1,0.0,-2.0,1,0,0,0
+4,1,1,1,0,0,0,0.0,0.0,0.0,0,0.0,-1.0,1,0,0,0
+5,2,1,1,0,0,0,0.0,0.0,0.0,1,0.0,-2.5,2,0,0,0
+6,2,1,1,0,0,0,0.0,0.0,0.0,1,0.0,-2.5,2,0,0,0
+7,2,1,1,0,0,0,0.0,0.0,0.0,1,0.0,-2.5,2,0,0,0
+8,2,1,1,0,0,0,0.0,0.0,0.0,1,0.0,-2.5,2,0,0,0
+9,2,1,1,0,0,0,0.0,0.0,0.0,1,0.0,-2.5,2,0,0,0

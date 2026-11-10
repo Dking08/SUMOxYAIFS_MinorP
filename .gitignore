@@ -1,0 +1,54 @@
+# Venv
+vsumof/
+venv/
+.venv/
+
+SUMO
+YAIFS/
+conference_paper/
+
+# Pythons
+**/__pycache__/
+*.pyc
+*.swp
+*.aux
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.out
+*.toc
+
+# Others
+misc-visitors/
+
+# Agents
+.agents/
+skills-lock.json
+
+# SUMO generated runtime outputs (ignore)
+sumoXyafs/sumo/**/fcd.xml
+sumoXyafs/sumo/**/fog_test.fcd.xml
+sumoXyafs/sumo/**/edgeData.xml
+sumoXyafs/sumo/**/fog_test.edgeData.xml
+sumoXyafs/sumo/**/fog_test.laneData.xml
+sumoXyafs/sumo/**/stats.xml
+sumoXyafs/sumo/**/fog_test.stats.xml
+sumoXyafs/sumo/**/tripinfos.xml
+sumoXyafs/sumo/**/fog_test.tripinfos.xml
+
+# Keep SUMO scenario/config inputs tracked
+!sumoXyafs/sumo/**/osm.sumocfg
+!sumoXyafs/sumo/**/fog_test.sumocfg
+!sumoXyafs/sumo/**/*.add.xml
+!sumoXyafs/sumo/**/*.trips.xml
+!sumoXyafs/sumo/**/*.view.xml
+!sumoXyafs/sumo/**/*.net.xml.gz
+!sumoXyafs/sumo/**/*.poly.xml.gz
+!sumoXyafs/sumo/**/*.osm.xml.gz
+
+sumoXyafs/results/test_yafs_runtime*
+
+# Keep analysis results in repository
+# !sumoXyafs/results/
+# !sumoXyafs/results/**
