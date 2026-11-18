@@ -12,6 +12,7 @@ class _Node:
     x: float
     y: float
     node_id: int
+    is_vehicular: bool = False
 
 
 class _HoverTip:
@@ -102,7 +103,7 @@ class RuntimeDashboard:
             return
 
         self.available = True
-        self.root.title("SUMO-YAIFS Runtime Dashboard")
+        self.root.title("SUMO-YAFS Runtime Dashboard")
         self.root.geometry("1220x760")
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
@@ -231,11 +232,63 @@ class RuntimeDashboard:
         if not self.enabled:
             return
         self._nodes = {
-            n.rsu_id: _Node(rsu_id=n.rsu_id, x=float(n.x), y=float(n.y), node_id=int(n.node_id))
+            n.rsu_id: _Node(
+                rsu_id=n.rsu_id,
+                x=float(n.x),
+                y=float(n.y),
+                node_id=int(n.node_id),
+                is_vehicular=bool(getattr(n, "is_vehicular", False)),
+            )
             for n in rsu_nodes
         }
         self._build_bounds()
         self._redraw_map()
+
+    def update_rsus(self, rsu_nodes: list) -> None:
+        if not self.enabled:
+            return
+        needs_redraw = False
+        current_ids = {n.rsu_id for n in rsu_nodes}
+        if set(self._nodes.keys()) != current_ids:
+            needs_redraw = True
+
+        for n in rsu_nodes:
+            if n.rsu_id in self._nodes:
+                node = self._nodes[n.rsu_id]
+                node.x = float(n.x)
+                node.y = float(n.y)
+                node.is_vehicular = bool(getattr(n, "is_vehicular", False))
+                if node.is_vehicular and n.rsu_id in self._node_items:
+                    items = self._node_items[n.rsu_id]
+                    cx, cy = self._scale(node.x, node.y)
+                    self.canvas.coords(items["oval"], cx - 13, cy - 13, cx + 13, cy + 13)
+                    self.canvas.coords(items["label"], cx, cy - 19)
+                    self.canvas.coords(items["queue"], cx, cy + 19)
+            else:
+                self._nodes[n.rsu_id] = _Node(
+                    rsu_id=n.rsu_id,
+                    x=float(n.x),
+                    y=float(n.y),
+                    node_id=int(n.node_id),
+                    is_vehicular=bool(getattr(n, "is_vehicular", False)),
+                )
+                needs_redraw = True
+
+        departed = [rid for rid in self._nodes if rid not in current_ids]
+        for rid in departed:
+            self._nodes.pop(rid, None)
+            if rid in self._node_items:
+                items = self._node_items.pop(rid)
+                for it in items.values():
+                    try:
+                        self.canvas.delete(it)
+                    except Exception:
+                        pass
+            needs_redraw = True
+
+        if needs_redraw:
+            self._build_bounds()
+            self._redraw_map()
 
     def begin_step(self, step: int, steps_total: int) -> None:
         if not self.enabled:
@@ -380,10 +433,19 @@ class RuntimeDashboard:
         self._node_items.clear()
         for node in sorted(self._nodes.values(), key=lambda x: x.rsu_id):
             cx, cy = self._scale(node.x, node.y)
-            color = "#2d6a4f" if node.node_id == 1 else ("#3a5a40" if node.node_id == 2 else "#355070")
-            oval = self.canvas.create_oval(cx - 12, cy - 12, cx + 12, cy + 12, fill=color, outline="#9ec5ab", width=2, tags=("rsu",))
-            label = self.canvas.create_text(cx, cy - 18, text=node.rsu_id, fill="#d8f3dc", font=("Consolas", 9, "bold"), tags=("rsu",))
-            queue = self.canvas.create_text(cx, cy + 18, text="q:0", fill="#b7c7d6", font=("Consolas", 8), tags=("rsu",))
+            if getattr(node, "is_vehicular", False):
+                color = "#d97706"  # Distinctive vibrant amber for vehicular RSUs
+                outline_color = "#fef08a"
+                width = 3
+                r = 13
+            else:
+                color = "#2d6a4f" if node.node_id == 1 else ("#3a5a40" if node.node_id == 2 else "#355070")
+                outline_color = "#9ec5ab"
+                width = 2
+                r = 12
+            oval = self.canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill=color, outline=outline_color, width=width, tags=("rsu",))
+            label = self.canvas.create_text(cx, cy - (r + 6), text=node.rsu_id, fill="#fef08a" if getattr(node, "is_vehicular", False) else "#d8f3dc", font=("Consolas", 9, "bold"), tags=("rsu",))
+            queue = self.canvas.create_text(cx, cy + (r + 6), text="q:0", fill="#b7c7d6", font=("Consolas", 8), tags=("rsu",))
             self._node_items[node.rsu_id] = {"oval": oval, "label": label, "queue": queue}
 
         for vid in list(self._vehicle_state.keys()):
@@ -404,10 +466,15 @@ class RuntimeDashboard:
         else:
             rx, ry = cx, cy
 
+        is_exec_vrsu = rsu_anchor is not None and getattr(rsu_anchor, "is_vehicular", False)
         if s["action"] == "slow_down":
             color = "#ff6b6b"
             link_color = "#d1495b"
             link_dash = ()
+        elif is_exec_vrsu:
+            color = "#38bdf8"
+            link_color = "#f59e0b"
+            link_dash = (2, 2)
         elif s["execution_rsu"] != s["observed_rsu"]:
             color = "#ffd166"
             link_color = "#f4a261"

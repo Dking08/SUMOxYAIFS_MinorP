@@ -1,1 +1,1 @@
-{"rules": {"queue_thresh": 0.05, "dist_thresh": 0.75, "slack_thresh": -0.2}, "max_depth": 4}
+{"rules": {"queue_thresh": 0.05, "dist_thresh": 0.75, "slack_thresh": -0.2}, "max_depth": 4, "tree": {"is_leaf": true, "value": 1.0}}

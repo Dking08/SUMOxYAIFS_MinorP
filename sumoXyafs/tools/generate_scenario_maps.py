@@ -140,7 +140,6 @@ def generate_all_maps():
     plot_single_scenario(axes[2], scenarios[2][1], scenarios[2][2], "(c) Luxembourg LuST Benchmark\n$M=12$ RSUs, 155 $\\text{km}^2$ Metropolitan Grid", "lust")
     
     # Common Legend at bottom
-    from matplotlib.lines import Line2D
     legend_elements = [
         Line2D([0], [0], color='#0F172A', lw=2.0, label='Major Road / Arterial'),
         Line2D([0], [0], color='#64748B', lw=1.0, label='Secondary Street / Lane'),

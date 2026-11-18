@@ -1,20 +1,24 @@
-from __future__ import annotations
-
-import csv
-import json
 import sys
 from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BASE_DIR.parent
+for p in [
+    str(BASE_DIR),
+    str(PROJECT_ROOT),
+    str(PROJECT_ROOT / "YAFS" / "src"),
+    str(PROJECT_ROOT / "YAIFS" / ".venv" / "Lib" / "site-packages"),
+    str(BASE_DIR / "venv" / "src" / "yafs" / "src"),
+    str(BASE_DIR / "venv" / "lib" / "python3.12" / "site-packages"),
+    str(PROJECT_ROOT / ".venv" / "src" / "yafs" / "src"),
+]:
+    if p not in sys.path and Path(p).exists():
+        sys.path.append(p)
+
+import json
+import csv
 from queue import Queue
 from typing import Optional
-
-# Ensure YAIFS module is discoverable if not installed globally
-try:
-    import yafs
-except ImportError:
-    repo_root = Path(__file__).resolve().parents[1]
-    yaifs_src = repo_root / "YAIFS" / "src"
-    if yaifs_src.exists() and str(yaifs_src) not in sys.path:
-        sys.path.insert(0, str(yaifs_src))
 
 from yafs.application import Application, Message
 from yafs.core import Sim
@@ -149,6 +153,7 @@ class MinimalFogSim:
                 algorithm=algorithm,
                 dataset_logger=dataset_logger,
                 pretrained_model_dir=pretrained_model_dir,
+                delayed_feedback=True,
             )
             self.control_policy = ControlPolicy(reroute_cooldown_s=reroute_cooldown_s)
 
@@ -188,6 +193,9 @@ class MinimalFogSim:
         queue_depths = self.task_manager.active_queue_depths()
         records: list[dict] = []
 
+        # Prepare batch step context (e.g. for K-Means clustering and batch algorithms)
+        self.scheduler.prepare_step(telemetry_batch, queue_depths, step=step)
+
         # Keep telemetry ingress explicit so YAFS remains the transport/compute timeline.
         for telemetry in telemetry_batch:
             normalized = self._normalize_telemetry(telemetry)
@@ -222,8 +230,19 @@ class MinimalFogSim:
         if self.scheduler is not None:
             self.scheduler.set_measured_link_latency(self._last_metrics_snapshot.get("avg_link_latency_s", 0.0))
 
-        # Match legacy behavior: task completion advances once per outer SUMO step.
-        completed = self.task_manager.tick_all(step_size_s=1.0)
+        # Task completion advances once per outer SUMO step with real completion feedback
+        completed = self.task_manager.tick_all(rsu_registry=self.rsu_registry, step_size_s=1.0, current_step=step)
+        if self.scheduler is not None:
+            for comp_task in completed:
+                self.scheduler.on_task_completed(comp_task, completion_step=step)
+
+        # Prune inactive vehicles and record dropped tasks
+        live_vids = {t.vehicle_id for t in telemetry_batch}
+        dropped = self.task_manager.prune_missing(live_vids, current_step=step)
+        if self.scheduler is not None:
+            for drop_task in dropped:
+                self.scheduler.on_task_completed(drop_task, completion_step=step)
+
         current_queue_depths = self.task_manager.active_queue_depths()
         self._last_metrics_snapshot["completed_tasks"] = len(completed)
         self._last_metrics_snapshot["active_tasks"] = sum(current_queue_depths.values())
@@ -255,6 +274,7 @@ class MinimalFogSim:
             speed=telemetry.speed,
             step=telemetry.step,
             observed_rsu=observed_rsu,
+            angle=getattr(telemetry, "angle", 0.0),
         )
 
     def _resolve_processor_nodes(self) -> list[int]:

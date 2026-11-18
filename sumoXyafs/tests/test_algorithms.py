@@ -270,6 +270,98 @@ class AlgorithmTests(unittest.TestCase):
             self.assertIn(decision.execution_rsu, ["rsu_1", "rsu_2"])
             self.assertIsNotNone(decision.action)
 
+    def test_decision_tree_json_serialization_roundtrip(self) -> None:
+        selector = DecisionTreeSelector(max_depth=3)
+        records = [
+            {"norm_distance_to_action": 0.1, "queue_depth_action": 1, "speed": 10, "deadline_slack_steps": 4, "deadline_met": 1},
+            {"norm_distance_to_action": 0.9, "queue_depth_action": 18, "speed": 25, "deadline_slack_steps": -2, "deadline_met": 0},
+            {"norm_distance_to_action": 0.2, "queue_depth_action": 2, "speed": 8, "deadline_slack_steps": 3, "deadline_met": 1},
+            {"norm_distance_to_action": 0.8, "queue_depth_action": 15, "speed": 22, "deadline_slack_steps": -1, "deadline_met": 0},
+            {"norm_distance_to_action": 0.15, "queue_depth_action": 2, "speed": 12, "deadline_slack_steps": 2, "deadline_met": 1},
+            {"norm_distance_to_action": 0.85, "queue_depth_action": 19, "speed": 28, "deadline_slack_steps": -3, "deadline_met": 0},
+        ]
+        selector.train_offline(records)
+        state_safe = make_dummy_state(queue_depths={"rsu_1": 1, "rsu_2": 2}, deadline_slack=4)
+        state_danger = make_dummy_state(queue_depths={"rsu_1": 19, "rsu_2": 1}, deadline_slack=-3)
+
+        mig_safe = selector.should_migrate(state_safe)
+        mig_danger = selector.should_migrate(state_danger)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            model_path = Path(tmp_dir) / "dt_model.json"
+            selector.save(model_path)
+            self.assertTrue(model_path.exists())
+
+            loaded = DecisionTreeSelector()
+            loaded.load(model_path)
+            self.assertEqual(loaded.should_migrate(state_safe), mig_safe)
+            self.assertEqual(loaded.should_migrate(state_danger), mig_danger)
+
+    def test_random_forest_json_serialization_roundtrip(self) -> None:
+        selector = RandomForestSelector(miss_threshold=0.5, n_estimators=10)
+        records = [
+            {"norm_distance_to_action": 0.1, "queue_depth_action": 1, "speed": 10, "deadline_slack_steps": 4, "deadline_met": 1},
+            {"norm_distance_to_action": 0.9, "queue_depth_action": 18, "speed": 25, "deadline_slack_steps": -2, "deadline_met": 0},
+            {"norm_distance_to_action": 0.2, "queue_depth_action": 2, "speed": 8, "deadline_slack_steps": 3, "deadline_met": 1},
+            {"norm_distance_to_action": 0.8, "queue_depth_action": 15, "speed": 22, "deadline_slack_steps": -1, "deadline_met": 0},
+            {"norm_distance_to_action": 0.15, "queue_depth_action": 2, "speed": 12, "deadline_slack_steps": 2, "deadline_met": 1},
+            {"norm_distance_to_action": 0.85, "queue_depth_action": 19, "speed": 28, "deadline_slack_steps": -3, "deadline_met": 0},
+        ]
+        selector.train_offline(records)
+        state = make_dummy_state()
+        feats = selector._extract_features(state, "rsu_1")
+        prob_orig = selector.predict_miss_prob(feats)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            model_path = Path(tmp_dir) / "rf_model.json"
+            selector.save(model_path)
+            self.assertTrue(model_path.exists())
+
+            loaded = RandomForestSelector()
+            loaded.load(model_path)
+            prob_loaded = loaded.predict_miss_prob(feats)
+            self.assertAlmostEqual(prob_orig, prob_loaded, places=4)
+
+    def test_kmeans_batch_prepare_step(self) -> None:
+        selector = KMeansClusterSelector(k_clusters=2)
+        registry = RSURegistry(
+            rsus=[
+                RSUNode("rsu_1", node_id=1, x=100.0, y=100.0, capacity=10),
+                RSUNode("rsu_2", node_id=2, x=900.0, y=900.0, capacity=10),
+            ]
+        )
+        t1 = Telemetry(vehicle_id="v1", position=(110.0, 105.0), speed=10.0, step=5, observed_rsu="rsu_1")
+        t2 = Telemetry(vehicle_id="v2", position=(910.0, 895.0), speed=12.0, step=5, observed_rsu="rsu_2")
+
+        selector.prepare_step([t1, t2], registry, {"rsu_1": 0, "rsu_2": 0}, step=5)
+        s1 = make_dummy_state(vehicle_id="v1", pos=(110.0, 105.0), step=5)
+        s2 = make_dummy_state(vehicle_id="v2", pos=(910.0, 895.0), step=5)
+        self.assertEqual(selector.choose_rsu(s1), "rsu_1")
+        self.assertEqual(selector.choose_rsu(s2), "rsu_2")
+
+    def test_closed_loop_delayed_feedback(self) -> None:
+        registry = RSURegistry(
+            rsus=[
+                RSUNode("rsu_1", node_id=1, x=0.0, y=0.0, capacity=10),
+                RSUNode("rsu_2", node_id=2, x=500.0, y=0.0, capacity=10),
+            ]
+        )
+        tm = TaskManager(task_deadline_s=3.0, compute_time_s=1.0)
+        scheduler = Scheduler(registry, tm, algorithm="linucb", delayed_feedback=True)
+
+        t0 = Telemetry(vehicle_id="v_dyn", position=(10.0, 0.0), speed=10.0, step=0, observed_rsu="rsu_1")
+        dec = scheduler.schedule(t0, queue_depths={"rsu_1": 0, "rsu_2": 0})
+        self.assertEqual(dec.execution_rsu, "rsu_1")
+
+        completed = tm.tick_all(rsu_registry=registry, step_size_s=1.0, current_step=0)
+        self.assertEqual(len(completed), 1)
+        task = completed[0]
+        self.assertEqual(task.completed_step, 0)
+        self.assertTrue(task.deadline_met)
+
+        scheduler.on_task_completed(task, completion_step=0)
+        self.assertIn("rsu_1", scheduler.selector.A)
+
 
 if __name__ == "__main__":
     unittest.main()

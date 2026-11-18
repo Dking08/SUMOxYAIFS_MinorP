@@ -1,0 +1,12 @@
+{
+  "sumo_cfg": "/home/pegion/drived/Space/sumo_YAFS_mProject/sumoXyafs/sumo/delhi/osm.sumocfg",
+  "rsu_config": "sumoXyafs/rsu_config.json",
+  "steps": 200,
+  "port": 8873,
+  "start_sumo": true,
+  "gui": false,
+  "run_dir": "/home/pegion/drived/Space/sumo_YAFS_mProject/sumoXyafs/results/run_20260916_140557",
+  "raw_dir": "/home/pegion/drived/Space/sumo_YAFS_mProject/sumoXyafs/results/run_20260916_140557/raw",
+  "analysis_dir": "/home/pegion/drived/Space/sumo_YAFS_mProject/sumoXyafs/results/run_20260916_140557/analysis",
+  "generated_at": "2026-09-16T14:06:01"
+}

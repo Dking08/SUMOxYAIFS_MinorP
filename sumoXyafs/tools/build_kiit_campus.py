@@ -306,7 +306,7 @@ def main() -> None:
 
     # Generate quick run batch file
     run_bat = out_dir / "run_kiit_simulation.bat"
-    bat_content = f"""@echo off
+    bat_content = """@echo off
 cd /d "%~dp0\\..\\.."
 python realtime.py --sumo-cfg sumo/kiit_campus/kiit_campus.sumocfg --rsu-config sumo/kiit_campus/rsu_config_kiit.json --start-sumo --gui --steps 300 --run-name kiit_campus_eval
 pause

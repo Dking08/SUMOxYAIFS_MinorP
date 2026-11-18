@@ -1,9 +1,11 @@
-"""Core models used by the SUMO <-> RSU <-> fog bridge."""
+"""Core models used by the SUMO <-> RSU <-> fog bridge with realistic hardware and wireless channel parameters."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Optional, Tuple
 
+from modules.hardware_profiles import HardwareSpec, get_hardware_spec
+from modules.wireless_channel import V2XProtocol, get_v2x_protocol
 
 Position = Tuple[float, float]
 
@@ -15,6 +17,7 @@ class Telemetry:
     speed: float
     step: int
     observed_rsu: str = ""
+    angle: float = 0.0
 
 
 @dataclass
@@ -25,6 +28,21 @@ class RSUNode:
     y: float
     capacity: int = 20
     neighbors: list[str] = field(default_factory=list)
+    hardware_profile: str = "siemens_rs22x"
+    v2x_protocol: str = "c-v2x"
+    is_vehicular: bool = False
+    vehicle_id: Optional[str] = None
+    speed: float = 0.0
+    angle: float = 0.0
+    coverage_radius: float = 500.0
+    spec: HardwareSpec = field(default_factory=lambda: get_hardware_spec("siemens_rs22x"))
+    protocol_spec: V2XProtocol = field(default_factory=lambda: get_v2x_protocol("c-v2x"))
+
+    def __post_init__(self):
+        if isinstance(self.hardware_profile, str):
+            self.spec = get_hardware_spec(self.hardware_profile)
+        if isinstance(self.v2x_protocol, str):
+            self.protocol_spec = get_v2x_protocol(self.v2x_protocol)
 
 
 @dataclass
@@ -36,10 +54,22 @@ class TaskState:
     created_step: int
     deadline_step: int
     remaining_compute_s: float
+    remaining_gflops: float = 2.0
+    total_gflops: float = 2.0
+    payload_in_mbits: float = 1.0
+    payload_out_mbits: float = 0.2
+    task_category: str = "traffic"  # "safety", "traffic", "global"
+    execution_tier: str = "V2I"  # "V2V", "V2I", "FOG_MIGRATE", "CLOUD"
     progress: float = 0.0
     last_position: Position = (0.0, 0.0)
     last_speed: float = 0.0
     migrations: int = 0
+    decision_offload_state: Optional[OffloadingState] = None
+    decision_action_rsu: str = ""
+    decision_step: int = 0
+    completed_step: Optional[int] = None
+    actual_latency_s: float = 0.0
+    deadline_met: Optional[bool] = None
 
 
 @dataclass
@@ -53,6 +83,14 @@ class SchedulingDecision:
     estimated_finish_step: int
     deadline_step: int
     estimated_network_latency_s: float = 0.0
+    execution_tier: str = "V2I"  # "V2V", "V2I", "vRSU", "FOG_MIGRATE", "CLOUD"
+    transmission_latency_s: float = 0.0
+    queue_latency_s: float = 0.0
+    compute_latency_s: float = 0.0
+    sinr_linear: float = 0.0
+    data_rate_mbps: float = 0.0
+    contact_duration_s: float = float("inf")
+    is_vrsu: bool = False
 
 
 @dataclass
@@ -153,6 +191,8 @@ class DecisionFeedback:
     reward: float
     step: int
     vehicle_id: str
+    next_state: Optional[OffloadingState] = None
+    is_terminal: bool = False
 
     def to_dict(self) -> dict:
         d = self.state.to_dict()

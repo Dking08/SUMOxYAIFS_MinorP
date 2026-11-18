@@ -63,6 +63,20 @@ def load_dataset_from_run_dir(run_dir: Path | str) -> list[dict]:
             deadline_met = int(est_finish <= deadline)
             latency_s = float(max(1, est_finish - step))
 
+            compute_s = float(d.get("compute_latency_s", 2.0))
+            if compute_s <= 0.0:
+                compute_s = 2.0
+
+            if "queue_depth_action" in d:
+                q_depth = float(d["queue_depth_action"])
+            elif "queue_latency_s" in d and float(d.get("queue_latency_s", 0.0)) > 0:
+                q_lat = float(d["queue_latency_s"])
+                q_depth = max(0.0, q_lat * 100.0)
+            else:
+                net_lat = float(d.get("estimated_network_latency_s", 0.0))
+                total_delay = max(0.0, float(est_finish - step))
+                q_depth = max(0.0, total_delay - compute_s - net_lat)
+
             telem = telemetry_by_key.get((step, vid), {})
             speed = float(telem.get("speed_mps", 10.0))
 
@@ -76,9 +90,9 @@ def load_dataset_from_run_dir(run_dir: Path | str) -> list[dict]:
                     "action_rsu": exec_rsu,
                     "action": action,
                     "norm_distance_to_action": min(1.0, dist / 1500.0),
-                    "queue_depth_action": 1,
+                    "queue_depth_action": q_depth,
                     "speed": speed,
-                    "remaining_compute_s": 2.0,
+                    "remaining_compute_s": compute_s,
                     "deadline_step": deadline,
                     "deadline_slack_steps": slack,
                     "latency_s": latency_s,

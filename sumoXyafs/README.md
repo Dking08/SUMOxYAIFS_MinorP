@@ -46,7 +46,6 @@ choose_rsu(state: OffloadingState) -> str
    python realtime.py --start-sumo --algorithm ridge --pretrained-model-dir trained_models
    ```
 
----
 
 Each run now writes artifacts to a dedicated timestamped folder under `sumoXyafs/results/`:
 - `results/run_YYYYmmdd_HHMMSS/raw/` -> YAFS runtime traces (`yafs_runtime.csv`, `yafs_runtime_link.csv`)
@@ -108,6 +107,45 @@ YAFS runtime traces are now written per run under `sumoXyafs/results/` as:
 - `yafs_runtime_link.csv` (link-level transfer latency)
 
 Every 20 steps, the bridge prints a compact `[YAFS]` line with incremental averages from newly emitted trace rows (`e2e`, `service`, `link`) and `[YAFS-RSU]` lines for top RSUs by message count.
+
+---
+
+### Dynamic Vehicular RSUs (vRSUs) Experimental Feature
+
+Volunteered vehicles equipped with on-board edge compute units (e.g., Jetson AGX Orin) act as dynamically moving RSUs alongside dedicated static RSUs.
+
+#### CLI Flags:
+- `--vehicle` / `--vehicles`: Cap total active vehicles simulated in SUMO.
+- `--vehicle-rsu` / `--vrsu`: Number of vehicles volunteering as moving RSUs (default `0`).
+- `--map`: Alias for `--sumo-cfg` (e.g. `--map sumo/delhi/fog_test.sumocfg`).
+- `--vrsu-capacity`: Hardware queue capacity of each vRSU (default `15`).
+- `--vrsu-range`: Direct wireless coverage radius in meters (default `350.0m`).
+- `--vrsu-hardware`: Hardware specification profile (default `jetson_agx_orin`).
+
+#### Execution Examples:
+Run with 3 volunteered moving RSUs:
+```bash
+python realtime.py --start-sumo --gui --sumo-cfg sumo/delhi/fog_test.sumocfg --steps 400 --step-delay 0.3 --vehicle-rsu 3
+```
+
+Run with Tkinter live dashboard observing moving vRSUs (gold nodes with live moving coordinates):
+```bash
+python realtime.py --start-sumo --gui --sumo-cfg sumo/delhi/fog_test.sumocfg --steps 400 --step-delay 0.3 --vehicle-rsu 3 --dashboard
+```
+
+Run with Web Dashboard (3D stacked layer + 2D map + SUMO micro-sim view):
+```bash
+python realtime.py --start-sumo --gui --sumo-cfg sumo/delhi/fog_test.sumocfg --steps 600 --vehicle-rsu 3 --web-dashboard
+```
+
+#### Automated Quantitative Comparison Test & Report Generator:
+Automatically run Static-Only vs Static+vRSU simulations and generate a publication-ready comparative report with plots:
+```bash
+python sumoXyafs/analysis/benchmark_vrsu_comparison.py --auto-run --steps 200 --vehicle-rsu 3 --sumo-cfg sumo/delhi/fog_test.sumocfg
+```
+The comparison report and figures are saved under `results/vrsu_comparison_report/`.
+
+---
 
 Generate an initial RSU config from the SUMO net:
 ```python tools/generate_rsu_config.py --net-file sumo/delhi/osm.net.xml.gz --count 9 --output rsu_config.json```

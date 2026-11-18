@@ -169,7 +169,7 @@ def main() -> None:
     sumo_cfg.write_text(sumocfg_content.strip(), encoding="utf-8")
     print(f"[+] Created {sumo_cfg.name}")
     print("\n[SUCCESS] LuST Benchmark scenario ready!")
-    print(f"Run command: python realtime.py --sumo-cfg sumo/lust/lust.sumocfg --rsu-config sumo/lust/rsu_config_lust.json --start-sumo --gui")
+    print("Run command: python realtime.py --sumo-cfg sumo/lust/lust.sumocfg --rsu-config sumo/lust/rsu_config_lust.json --start-sumo --gui")
 
 
 if __name__ == "__main__":

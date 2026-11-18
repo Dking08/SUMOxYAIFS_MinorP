@@ -1,39 +1,20 @@
-# CoFog-SUMO: SUMO and YAIFS Integration
+# Mini Project - SUMO and YAFS integration
 
-This project explores microscopic vehicular mobility and edge/fog computing orchestration by integrating SUMO (Simulation of Urban MObility) with the YAIFS (Yet (not) Another Intelligent Fog Simulator) framework.
+This mini project aims to explore the integration of Fog Computing concepts with the YAFS (Yet Another Fog Simulator) framework. The goal is to simulate and analyze the performance of applications deployed in a fog computing environment using YAFS.
 
-[YAIFS GitHub Repository](https://github.com/acsicuib/YAIFS)
+[YAFS GitHub Repository](https://github.com/acsicuib/YAFS)
 
 [SUMO (Simulation of Urban MObility)](https://github.com/eclipse-sumo/sumo)
 
----
-
-## ⚡ YAIFS Offloading & Scheduling Algorithms
-
-The platform provides a unified RSU offloading interface (`choose_rsu(state) -> rsu_id`) implementing 8 CPU-only algorithms (plus greedy baseline) runnable with pure NumPy or scikit-learn:
-
-1. **LinUCB** (`linucb`): Online contextual bandit with learned ridge reward estimate and UCB exploration bonus.
-2. **Thompson Sampling** (`thompson`): Online bandit maintaining a Beta posterior per RSU with load and distance penalties.
-3. **Ridge Regression** (`ridge`): Supervised latency prediction per (vehicle, RSU) choosing the lowest-latency RSU.
-4. **Random Forest Classifier** (`random_forest`): Supervised deadline-miss probability predictor filtering high-risk RSUs.
-5. **Markov Chain** (`markov`): Statistical transition model predicting next RSU from SUMO traces for proactive handover.
-6. **Decision Tree** (`decision_tree`): Supervised trigger rule classifying whether staying causes deadline misses.
-7. **Tabular Q-Learning** (`q_learning`): Reinforcement learning using coarse state discretization (load, distance, slack) and a 27x4 Q-table.
-8. **K-Means Clustering** (`kmeans`): Unsupervised clustering grouping vehicles by position, heading, and speed, assigning cluster centroids to optimal nearby RSUs.
-9. **Greedy Baseline** (`greedy`): Deadline-aware sticky handover + nearest non-overloaded offloading heuristic.
-
----
-
 ## **1. Repository Structure**
 
-This project uses external systems and submodules:
+This project uses **multiple submodules** to integrate external systems:
 
 ```bash
 root/
- ├── SUMO/       ← Microscopic vehicular traffic simulator
- ├── YAIFS/      ← Yet Another Intelligent Fog Simulator (v3.1.0)
- ├── sumoXyafs/  ← Co-simulation bridge, control policies, and ML offloading algorithms
- └── conference_paper/ ← IEEE conference paper and publication artifacts
+ ├── SUMO/   ← Git submodule (our modified version of the SUMO)
+ ├── YAFS/   ← Git submodule (our modified version of YAFS)
+ └── /   ← Main code
 ```
 
 Each submodule is connected to **our private forks**, not the public upstream repos.

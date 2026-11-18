@@ -15,6 +15,7 @@
         python312
         python312Packages.pip
         python312Packages.tkinter
+        python312Packages.matplotlib
         stdenv.cc.cc.lib
       ];
 

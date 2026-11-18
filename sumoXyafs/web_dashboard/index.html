@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SUMO + YAFS Fog Computing Sandbox</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+</head>
+
+<body>
+  <div class="app-container">
+    <!-- Header Bar -->
+    <header class="navbar">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+        </div>
+        <div>
+          <h1>SUMO + YAFS Fog Computing Platform</h1>
+          <p class="subtitle">Multi-Tier Edge-Cloud Orchestration & TraCI Synchronization</p>
+        </div>
+      </div>
+      <div class="controls-bar">
+        <!-- Mode Switcher -->
+        <div class="mode-switch-group">
+          <button id="modeRunBtn" class="btn btn-primary active-mode">Run Mode</button>
+          <button id="modeBuildBtn" class="btn btn-secondary">Build RSU Mode</button>
+        </div>
+        <div class="badge-group">
+          <span class="badge" id="stepBadge">Step: 0</span>
+          <span class="badge badge-success" id="completedBadge">Tasks Done: 0</span>
+          <span class="badge badge-success" id="sumoBadge">SUMO: Standalone</span>
+          <span class="badge" id="algoBadge" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);">Algo: GREEDY</span>
+        </div>
+        <button id="toggleAutoBtn" class="btn btn-secondary">Pause</button>
+        <button id="stepBtn" class="btn btn-secondary">Step (+1)</button>
+        <div class="spawn-selector">
+          <label for="taskCatSelect">Spawn Task:</label>
+          <select id="taskCatSelect" class="select-input">
+            <option value="traffic">Traffic Task (2.0 GFLOPs)</option>
+            <option value="safety">Safety Critical (0.5 GFLOPs)</option>
+            <option value="global">Heavy Global (50.0 GFLOPs)</option>
+          </select>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Area with Split Resizers -->
+    <main class="main-content" id="mainLayout">
+      <!-- Left Panel: SUMO Micro-Simulator (Delhi Road Network) -->
+      <aside id="sumoSidePanel" class="sumo-panel">
+        <div class="panel-header">
+          <div class="sumo-title-wrap">
+            <span class="panel-tag">SUMO</span>
+            <div>
+              <h2 class="panel-title">Micro-Simulator</h2>
+              <span class="panel-subtitle">Delhi OSM Road Network</span>
+            </div>
+          </div>
+          <button id="toggleSumoPanelBtn" class="btn-icon" title="Toggle SUMO Window">◀</button>
+        </div>
+
+        <div class="sumo-canvas-container">
+          <canvas id="sumoCanvas"></canvas>
+          <div class="sumo-canvas-overlay">
+            <span id="sumoStatusPill" class="status-pill status-active">TraCI Synced</span>
+            <div class="sumo-mini-btns">
+              <button id="sumoFitBtn" class="btn btn-xs btn-secondary" title="Center Road Map">Fit</button>
+              <button id="sumoTrailsBtn" class="btn btn-xs btn-secondary active-mode" title="Toggle Motion Trails">Trails</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="sumo-telemetry-grid">
+          <div class="mini-stat-card">
+            <span class="mini-stat-label">Active Vehicles</span>
+            <span id="sumoVehCount" class="mini-stat-val">0</span>
+          </div>
+          <div class="mini-stat-card">
+            <span class="mini-stat-label">Avg Speed</span>
+            <span id="sumoAvgSpeed" class="mini-stat-val">0.0 km/h</span>
+          </div>
+          <div class="mini-stat-card">
+            <span class="mini-stat-label">Road Edges</span>
+            <span id="sumoEdgeCount" class="mini-stat-val">2,488</span>
+          </div>
+          <div class="mini-stat-card">
+            <span class="mini-stat-label">Sim Step</span>
+            <span id="sumoStepVal" class="mini-stat-val">0</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Resizer Splitter: Left to Center -->
+      <div class="panel-resizer" id="resizerLeft" title="Drag to resize SUMO panel">
+        <div class="resizer-handle"></div>
+      </div>
+
+      <!-- Center: 3D Hierarchical Fog & V2X Orchestration Canvas -->
+      <section class="map-card" id="centerMapCard">
+        <div class="canvas-overlay">
+          <!-- View Mode Switcher -->
+          <div class="view-switch-group">
+            <button id="view3dBtn" class="btn btn-sm active-mode">3D Hierarchy</button>
+            <button id="view2dBtn" class="btn btn-sm btn-secondary">2D Map</button>
+          </div>
+
+          <!-- 3D Perspective Controls -->
+          <div id="perspectiveControls" class="zoom-controls">
+            <button id="tiltUpBtn" class="btn btn-sm btn-secondary" title="Tilt Perspective Up">Tilt ▲</button>
+            <button id="tiltDownBtn" class="btn btn-sm btn-secondary" title="Tilt Perspective Down">Tilt ▼</button>
+            <button id="rotateLeftBtn" class="btn btn-sm btn-secondary" title="Rotate Left">Rotate ↺</button>
+            <button id="rotateRightBtn" class="btn btn-sm btn-secondary" title="Rotate Right">Rotate ↻</button>
+            <button id="spacingUpBtn" class="btn btn-sm btn-secondary" title="Expand Layer Distance">Spacing +</button>
+            <button id="spacingDownBtn" class="btn btn-sm btn-secondary" title="Compress Layer Distance">Spacing -</button>
+            <button id="zoomInBtn" class="btn btn-sm btn-secondary" title="Zoom In">+</button>
+            <button id="zoomOutBtn" class="btn btn-sm btn-secondary" title="Zoom Out">-</button>
+            <button id="zoomFitBtn" class="btn btn-sm btn-secondary" title="Reset View">Reset</button>
+          </div>
+
+          <!-- Layer & Beam Legend -->
+          <div class="tier-legend">
+            <span class="legend-item"><span class="dot cloud-dot"></span> Layer 3: Cloud</span>
+            <span class="legend-item"><span class="dot f2f-dot"></span> Layer 2: Fog RSU</span>
+            <span class="legend-item"><span class="dot v2v-dot"></span> Layer 1: V2V / Road</span>
+          </div>
+        </div>
+
+        <!-- Floating RSU Resource Consumption Tooltip HUD -->
+        <div id="rsuHoverTooltip" class="rsu-hover-card hidden">
+          <div class="tooltip-header">
+            <span id="ttRsuId" class="tt-title">RSU_1</span>
+            <span id="ttHwBadge" class="tt-badge">AGX ORIN</span>
+          </div>
+          <div class="tooltip-body">
+            <div class="tt-metric-row">
+              <span>Compute Utilization:</span>
+              <span id="ttGflopsVal" class="tt-val">12,000 / 20,000 GF</span>
+            </div>
+            <div class="tt-progress-track">
+              <div id="ttCpuBar" class="tt-progress-fill" style="width: 45%"></div>
+            </div>
+            <div class="tt-metric-row mt-6">
+              <span>RAM Buffer Usage:</span>
+              <span id="ttRamVal" class="tt-val">1.2 GB / 16 GB</span>
+            </div>
+            <div class="tt-metric-row">
+              <span>Queue Depth / Tasks:</span>
+              <span id="ttQueueVal" class="tt-val">3 active tasks</span>
+            </div>
+            <div class="tt-metric-row">
+              <span>Connected V2X Links:</span>
+              <span id="ttLinksVal" class="tt-val">4 vehicles</span>
+            </div>
+            <div class="tt-metric-row">
+              <span>Wireless Protocol:</span>
+              <span id="ttProtoVal" class="tt-val">5G NR-V2X (100 MHz)</span>
+            </div>
+          </div>
+        </div>
+
+        <canvas id="simCanvas"></canvas>
+      </section>
+
+      <!-- Resizer Splitter: Center to Right -->
+      <div class="panel-resizer" id="resizerRight" title="Drag to resize Analytics sidebar">
+        <div class="resizer-handle"></div>
+      </div>
+
+      <!-- Sidebar Controls & Analytics -->
+      <aside class="sidebar" id="sidebarRight">
+        <!-- Live RSU Queue Load Sliders -->
+        <div class="panel-card">
+          <h2 class="panel-title">RSU Queue & Load Control</h2>
+          <div id="rsuSlidersContainer" class="sliders-list">
+            <!-- Dynamically populated sliders -->
+          </div>
+        </div>
+
+        <!-- 4-Tier Distribution Stats -->
+        <div class="panel-card">
+          <h2 class="panel-title">4-Tier Offloading Distribution</h2>
+          <div class="tier-bars">
+            <div class="tier-bar-row">
+              <span class="tier-name">V2V (Peer-to-Peer OBU)</span>
+              <div class="progress-track">
+                <div id="v2vBar" class="progress-fill v2v-fill" style="width: 0%"></div>
+              </div>
+              <span id="v2vCount" class="tier-val">0</span>
+            </div>
+            <div class="tier-bar-row">
+              <span class="tier-name">V2I (Local Fog)</span>
+              <div class="progress-track">
+                <div id="v2iBar" class="progress-fill v2i-fill" style="width: 0%"></div>
+              </div>
+              <span id="v2iCount" class="tier-val">0</span>
+            </div>
+            <div class="tier-bar-row">
+              <span class="tier-name">Fog-to-Fog (Migration)</span>
+              <div class="progress-track">
+                <div id="f2fBar" class="progress-fill f2f-fill" style="width: 0%"></div>
+              </div>
+              <span id="f2fCount" class="tier-val">0</span>
+            </div>
+            <div class="tier-bar-row">
+              <span class="tier-name">Fog-to-Cloud (Datacenter)</span>
+              <div class="progress-track">
+                <div id="cloudBar" class="progress-fill cloud-fill" style="width: 0%"></div>
+              </div>
+              <span id="cloudCount" class="tier-val">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Decision Logs -->
+        <div class="panel-card flex-fill">
+          <h2 class="panel-title">Physics & Decision Stream</h2>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Vehicle</th>
+                  <th>Obs / Exec RSU</th>
+                  <th>Tier</th>
+                  <th>SINR (dB)</th>
+                  <th>Rate (Mbps)</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="decisionsTableBody">
+                <!-- Dynamically populated rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- RSU Builder Modal Dialog -->
+  <div id="rsuModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3 class="modal-title">Deploy RSU Node</h3>
+      <div class="form-group">
+        <label for="modalRsuId">RSU Identifier:</label>
+        <input type="text" id="modalRsuId" class="text-input" value="rsu_custom">
+      </div>
+      <div class="form-group">
+        <label for="modalHwSelect">Hardware Compute Profile:</label>
+        <select id="modalHwSelect" class="select-input">
+          <option value="jetson_agx_orin">NVIDIA Jetson AGX Orin (20,000 GFLOPS / 64GB RAM)</option>
+          <option value="siemens_rs22x">Siemens Sitraffic RS22X (3,200 GFLOPS / 16GB RAM)</option>
+          <option value="jetson_nano">NVIDIA Jetson Nano Edge (472 GFLOPS / 4GB RAM)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="modalProtoSelect">Wireless Protocol:</label>
+        <select id="modalProtoSelect" class="select-input">
+          <option value="c-v2x">C-V2X LTE PC5 (20 MHz, 23 dBm)</option>
+          <option value="5g_nr_v2x">5G NR-V2X (100 MHz, 30 dBm)</option>
+          <option value="dsrc">DSRC IEEE 802.11p (10 MHz, 23 dBm)</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button id="cancelRsuBtn" class="btn btn-secondary">Cancel</button>
+        <button id="confirmRsuBtn" class="btn btn-primary">Deploy Node</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

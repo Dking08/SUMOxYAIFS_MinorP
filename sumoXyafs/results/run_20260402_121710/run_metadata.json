@@ -1,0 +1,12 @@
+{
+  "sumo_cfg": "sumo\\delhi\\fog_test.sumocfg",
+  "rsu_config": "rsu_config.json",
+  "steps": 100,
+  "port": 8873,
+  "start_sumo": true,
+  "gui": true,
+  "run_dir": "C:\\Users\\KIIT0001\\Documents\\sumo_YAFS_mProject\\sumoXyafs\\results\\run_20260402_121710",
+  "raw_dir": "C:\\Users\\KIIT0001\\Documents\\sumo_YAFS_mProject\\sumoXyafs\\results\\run_20260402_121710\\raw",
+  "analysis_dir": "C:\\Users\\KIIT0001\\Documents\\sumo_YAFS_mProject\\sumoXyafs\\results\\run_20260402_121710\\analysis",
+  "generated_at": "2026-04-02T12:18:06"
+}
