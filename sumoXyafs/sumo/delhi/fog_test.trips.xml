@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+    <vType id="fogProbe" vClass="passenger" accel="2.6" decel="4.5" sigma="0.4" maxSpeed="27.78" length="5.0" minGap="2.5"/>
+
+    <!-- Baseline cross-map flows to exercise nearest-RSU assignment. -->
+    <flow id="base_f1" type="fogProbe" begin="0" end="300" number="70" from="370672197#2" to="-1074715753#1" departLane="best" departSpeed="max"/>
+    <flow id="base_f2" type="fogProbe" begin="0" end="300" number="70" from="585446277#0" to="446922582#7" departLane="best" departSpeed="max"/>
+    <flow id="base_f3" type="fogProbe" begin="0" end="300" number="90" from="758753893#0" to="-24577106#1" departLane="best" departSpeed="max"/>
+    <flow id="base_f4" type="fogProbe" begin="0" end="300" number="90" from="24577106#0" to="-1074715757" departLane="best" departSpeed="max"/>
+    <flow id="base_f5" type="fogProbe" begin="0" end="300" number="60" from="-998790356#2" to="24577383#0" departLane="best" departSpeed="max"/>
+    <flow id="base_f6" type="fogProbe" begin="0" end="300" number="60" from="-1074715752#0" to="-717531843" departLane="best" departSpeed="max"/>
+
+    <!-- Mid-run bursts add pressure so overload/offload policies are observable. -->
+    <flow id="burst_f1" type="fogProbe" begin="40" end="120" number="90" from="758753893#0" to="-24577106#1" departLane="best" departSpeed="max"/>
+    <flow id="burst_f2" type="fogProbe" begin="40" end="120" number="90" from="24577106#0" to="-1074715757" departLane="best" departSpeed="max"/>
+    <flow id="burst_f3" type="fogProbe" begin="150" end="230" number="70" from="370672197#2" to="-1074715753#1" departLane="best" departSpeed="max"/>
+    <flow id="burst_f4" type="fogProbe" begin="150" end="230" number="70" from="585446277#0" to="446922582#7" departLane="best" departSpeed="max"/>
+</routes>

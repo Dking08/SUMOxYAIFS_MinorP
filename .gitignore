@@ -3,7 +3,7 @@ vsumof/
 venv/
 .venv/
 
-SUMO
+/SUMO/
 YAIFS/
 conference_paper/
 

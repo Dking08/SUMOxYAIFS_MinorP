@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<additional xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/additional_file.xsd">
+    <!-- Short periods make congestion and speed changes visible in outputs. -->
+    <edgeData id="fog_edges_60s" period="60" file="fog_test.edgeData.xml"/>
+    <laneData id="fog_lanes_60s" period="60" file="fog_test.laneData.xml"/>
+</additional>
